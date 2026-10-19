@@ -1,0 +1,105 @@
+@model PharmacyCompounding.ViewModels.QueryViewModel
+@{
+    ViewData["Title"] = $"Запит {Model.Number}. {Model.Title}";
+}
+<div class="page-head">
+    <div>
+        <div class="cell-sub"><a asp-action="Index">Запити</a> / @Model.Kind</div>
+        <h1>Запит @Model.Number. @Model.Title</h1>
+        <div class="sub">@Model.Description</div>
+    </div>
+</div>
+
+@if (Model.Message != null)
+{
+    <div class="flash flash-success"><i class="bi bi-check-circle-fill"></i><span>@Model.Message</span></div>
+}
+@if (Model.Error != null)
+{
+    <div class="flash flash-error"><i class="bi bi-exclamation-triangle-fill"></i><span>@Model.Error</span></div>
+}
+
+@if (Model.Params.Count > 0)
+{
+    <div class="panel mb-3">
+        <form asp-action="@Model.Action" method="@(Model.IsPost ? "post" : "get")" class="query-form">
+            @foreach (var p in Model.Params)
+            {
+                <div class="query-field">
+                    <label class="form-label" for="@p.Name">@p.Label</label>
+                    @if (p.Type == "select")
+                    {
+                        <select class="form-select" id="@p.Name" name="@p.Name" asp-items="p.Options"></select>
+                    }
+                    else
+                    {
+                        <input class="form-control" id="@p.Name" name="@p.Name" type="@p.Type" value="@p.Value" step="@(p.Type == "number" ? "any" : null)" />
+                    }
+                </div>
+            }
+            <button class="btn @(Model.IsPost ? "btn-brand" : "btn-soft")"><i class="bi @(Model.IsPost ? "bi-lightning-charge" : "bi-play-fill") me-1"></i>@Model.SubmitText</button>
+        </form>
+    </div>
+}
+
+@if (Model.Summary.Count > 0)
+{
+    <div class="row g-3 mb-3">
+        @foreach (var (label, value) in Model.Summary)
+        {
+            <div class="col-sm-6 col-xl-3">
+                <div class="panel stat py-3"><div><div class="stat-value num">@value</div><div class="stat-label">@label</div></div></div>
+            </div>
+        }
+    </div>
+}
+
+<div class="panel mb-3">
+    @if (Model.ResultTitle != null)
+    {
+        <div class="panel-head"><h2 class="panel-title"><i class="bi bi-table"></i>@Model.ResultTitle</h2></div>
+    }
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    @for (var i = 0; i < Model.Columns.Length; i++)
+                    {
+                        <th class="@(Model.RightAligned[i] ? "text-end" : "")">@Model.Columns[i]</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var row in Model.Rows)
+            {
+                <tr>
+                    @for (var i = 0; i < row.Length; i++)
+                    {
+                        <td class="@(Model.RightAligned[i] ? "text-end num" : "") @(i == 0 ? "cell-title" : "")">@row[i]</td>
+                    }
+                </tr>
+            }
+            @if (Model.Rows.Count == 0)
+            {
+                <tr><td colspan="@Math.Max(1, Model.Columns.Length)" class="empty">Немає записів, що відповідають умовам</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.Sql.Count > 0)
+{
+    <div class="panel">
+        <div class="panel-head">
+            <h2 class="panel-title"><i class="bi bi-database"></i>SQL, виконаний у PostgreSQL</h2>
+            <span class="cell-sub">команд: @Model.Sql.Count</span>
+        </div>
+        <div class="panel-body">
+            @foreach (var sql in Model.Sql)
+            {
+                <pre class="sql">@sql</pre>
+            }
+        </div>
+    </div>
+}

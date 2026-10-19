@@ -1,0 +1,14 @@
+@model Ingredient
+@{ ViewData["Title"] = "Видалення інгредієнта"; }
+<div class="page-head"><div><a asp-action="Index" class="small fw-semibold"><i class="bi bi-arrow-left"></i> Назад до списку</a><h1 class="mt-1">Видалити інгредієнт?</h1></div></div>
+<div class="panel"><div class="panel-body">
+    <dl class="kv mb-3">
+        <dt >Код</dt><dd >@Model.Code</dd>
+        <dt >Назва</dt><dd >@Model.Name</dd>
+        <dt >Залишок</dt><dd >@Model.Stock.ToString("0.##") @Model.Unit</dd>
+        <dt >Склад</dt><dd >@Model.Warehouse?.Name</dd>
+    </dl>
+    <form asp-action="Delete" asp-route-id="@Model.Id" method="post">
+        <button class="btn btn-ghost-danger">Видалити</button> <a asp-action="Index" class="btn btn-soft">Скасувати</a>
+    </form>
+</div></div>

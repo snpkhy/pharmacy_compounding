@@ -1,0 +1,64 @@
+@model Order
+@{ ViewData["Title"] = $"Замовлення №{Model.Number}"; }
+<div class="page-head">
+    <div>
+        <a asp-action="Index" class="small fw-semibold"><i class="bi bi-arrow-left"></i> Мої замовлення</a>
+        <h1 class="d-flex align-items-center gap-3 mt-1">Замовлення #@Model.Number <partial name="_StatusBadge" model="Model.Status" view-data='new ViewDataDictionary(ViewData) { ["Large"] = true }' /></h1>
+        <div class="sub">Створене @Model.CreatedAt.ToString("dd.MM.yyyy о HH:mm") · планова готовність @Model.PlannedReadyDate.ToString("dd.MM.yyyy")</div>
+    </div>
+    <div class="text-end">
+        <div class="stat-label">Сума замовлення</div>
+        <div class="stat-value num">@Model.Total.ToString("N2") ₴</div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-xl-8">
+        @foreach (var item in Model.Items)
+        {
+            <div class="panel mb-3">
+                <div class="panel-head">
+                    <h2 class="panel-title"><i class="bi bi-capsule"></i>@item.MedicineName</h2>
+                    <span class="text-muted small">@item.DosageForm · @item.Dosage · × @item.Quantity</span>
+                </div>
+                <table class="table align-middle">
+                    <thead><tr><th>Інгредієнт</th><th class="text-end">Кількість</th></tr></thead>
+                    <tbody>
+                    @foreach (var c in item.Components)
+                    {
+                        <tr><td class="cell-title">@c.Ingredient?.Name</td><td class="text-end num">@c.Amount.ToString("0.##") @c.Unit</td></tr>
+                    }
+                    <tr class="total-row"><td>Вартість позиції</td><td class="text-end num">@item.CalculateCost().ToString("N2") ₴</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+    <div class="col-xl-4">
+        <div class="panel mb-3">
+            <div class="panel-head"><h2 class="panel-title"><i class="bi bi-file-earmark-medical"></i>Рецепт @Model.Prescription?.Number</h2></div>
+            <div class="panel-body small">
+                <div class="mb-1"><span class="text-muted">Лікар:</span> @Model.Prescription?.Doctor?.FullName</div>
+                <div class="mb-1"><span class="text-muted">Пацієнт:</span> @Model.Prescription?.Patient</div>
+                <div class="mb-2"><span class="text-muted">Виписано:</span> @Model.Prescription?.IssueDate.ToString("dd.MM.yyyy")</div>
+                <span class="formula">@Model.Prescription?.Formula</span>
+            </div>
+        </div>
+        <div class="panel">
+            <div class="panel-head"><h2 class="panel-title"><i class="bi bi-wallet2"></i>Оплата</h2></div>
+            <div class="panel-body">
+                @if (Model.Payment == null) { <span class="text-muted">Ще не оплачено</span> }
+                else
+                {
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-semibold num">@Model.Payment.Amount.ToString("N2") ₴</div>
+                            <div class="cell-sub">@Model.Payment.Method · @Model.Payment.Date.ToString("dd.MM.yyyy HH:mm")</div>
+                        </div>
+                        @if (Model.Payment.Successful) { <span class="pill st-ok">успішна</span> } else { <span class="pill st-wait">повернено</span> }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

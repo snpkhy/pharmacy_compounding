@@ -1,0 +1,55 @@
+@model IEnumerable<Order>
+@{
+    ViewData["Title"] = "Мої замовлення";
+    var client = (Client?)ViewBag.Client;
+}
+<div class="page-head">
+    <div>
+        <div class="eyebrow">Особистий кабінет</div>
+        <h1>Мої замовлення</h1>
+        <div class="sub">Стан виготовлення ліків за вашими рецептами</div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-xl-8">
+        <div class="panel">
+            <table class="table table-hover align-middle">
+                <thead><tr><th>№</th><th>Ліки</th><th>Рецепт</th><th>Готовність</th><th>Статус</th><th class="text-end">Сума</th></tr></thead>
+                <tbody>
+                @foreach (var o in Model)
+                {
+                    <tr>
+                        <td><a class="order-no" asp-action="Details" asp-route-id="@o.Id">#@o.Number</a></td>
+                        <td><div class="cell-title">@string.Join(", ", o.Items.Select(i => i.MedicineName))</div><div class="cell-sub">@o.CreatedAt.ToString("dd.MM.yyyy")</div></td>
+                        <td class="text-muted">@o.Prescription?.Number</td>
+                        <td class="num">@o.PlannedReadyDate.ToString("dd.MM.yyyy")</td>
+                        <td><partial name="_StatusBadge" model="o.Status" /></td>
+                        <td class="text-end num">@o.Total.ToString("N2") ₴</td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr><td colspan="6" class="empty">
+                        <i class="bi bi-receipt fs-3 d-block mb-2"></i>
+                        Замовлень поки немає. Принесіть рецепт лікаря до аптеки — провізор оформить замовлення, і воно з'явиться тут.
+                    </td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="panel">
+            <div class="panel-head"><h2 class="panel-title"><i class="bi bi-person"></i>Профіль</h2></div>
+            <div class="panel-body d-flex gap-3 align-items-center">
+                <partial name="_Initials" model="client?.FullName" />
+                <div>
+                    <div class="cell-title">@client?.FullName</div>
+                    <div class="cell-sub">@client?.Email</div>
+                    <div class="cell-sub">@client?.Phone</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

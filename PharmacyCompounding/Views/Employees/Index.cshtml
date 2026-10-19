@@ -1,0 +1,51 @@
+@model IEnumerable<Employee>
+@{
+    ViewData["Title"] = "Працівники";
+    var canManage = User.IsInRole(Roles.Manager);
+}
+<div class="page-head">
+    <div><h1>Працівники</h1><div class="sub">Персонал аптеки. Облікові записи працівників створює завідувач</div></div>
+    @if (canManage)
+    {
+        <a class="btn btn-brand" asp-action="Create"><i class="bi bi-person-plus me-1"></i>Додати працівника</a>
+    }
+</div>
+<div class="row g-3">
+@foreach (var e in Model)
+{
+    <div class="col-md-6">
+        <div class="panel panel-body h-100">
+            <div class="d-flex gap-3 align-items-center mb-3">
+                <partial name="_Initials" model="e.FullName" />
+                <div>
+                    <div class="cell-title">@e.FullName</div>
+                    <span class="pill @(e switch { Pharmacist => "st-review", PharmacyManager => "st-ok", _ => "st-work" })">@e.Position</span>
+                </div>
+                @if (canManage)
+                {
+                    <div class="ms-auto text-nowrap">
+                        <a class="btn btn-soft btn-icon" title="Змінити" asp-action="Edit" asp-route-id="@e.Id"><i class="bi bi-pencil"></i></a>
+                        <form asp-action="Delete" asp-route-id="@e.Id" method="post" class="d-inline" onsubmit="return confirm('Видалити працівника?')">
+                            <button class="btn btn-ghost-danger btn-icon" title="Видалити"><i class="bi bi-trash3"></i></button>
+                        </form>
+                    </div>
+                }
+            </div>
+            <dl class="kv small">
+                <dt>Табельний номер</dt><dd>@e.PersonnelNumber</dd>
+                <dt>Дата прийому</dt><dd>@e.HireDate.ToString("dd.MM.yyyy")</dd>
+                <dt>Контакти</dt><dd>@e.Phone · @e.Email</dd>
+                @switch (e)
+                {
+                    case Pharmacist p:
+                        <dt>Кваліфікаційна категорія</dt><dd>@p.QualificationCategory</dd>
+                        break;
+                    case PharmTechnologist t:
+                        <dt>Допуск до виготовлення</dt><dd>@(t.AdmittedToProduction ? "так" : "ні")</dd>
+                        break;
+                }
+            </dl>
+        </div>
+    </div>
+}
+</div>

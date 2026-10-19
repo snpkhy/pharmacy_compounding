@@ -1,0 +1,10 @@
+@model Client
+@{ ViewData["Title"] = "Новий клієнт"; }
+<div class="page-head"><div><a asp-action="Index" class="small fw-semibold"><i class="bi bi-arrow-left"></i> Назад до списку</a><h1 class="mt-1">Реєстрація клієнта</h1></div></div>
+<div class="panel"><div class="panel-body">
+<form asp-action="Create" method="post">
+    <partial name="_Form" model="Model" />
+    <div class="mt-3"><button class="btn btn-brand">Зареєструвати</button> <a asp-action="Index" class="btn btn-soft">Назад</a></div>
+</form>
+</div></div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

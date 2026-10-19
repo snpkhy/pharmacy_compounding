@@ -1,0 +1,28 @@
+@model IEnumerable<Doctor>
+@{ ViewData["Title"] = "Лікарі"; }
+<div class="page-head">
+    <div><h1>Лікарі</h1><div class="sub">Лікарі, які виписують рецепти</div></div>
+    <a class="btn btn-brand" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Додати лікаря</a>
+</div>
+<div class="panel">
+<table class="table table-hover align-middle">
+    <thead><tr><th>Лікар</th><th>Заклад охорони здоров'я</th><th>Ліцензія</th><th class="text-end">Рецептів</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var d in Model)
+    {
+        <tr>
+            <td>
+                <div class="d-flex align-items-center gap-2">
+                    <partial name="_Initials" model="d.FullName" />
+                    <div><div class="cell-title">@d.FullName</div><div class="cell-sub">@d.Specialization</div></div>
+                </div>
+            </td>
+            <td class="text-muted small">@d.Institution</td>
+            <td class="num">@d.LicenseNumber</td>
+            <td class="text-end fw-semibold">@d.Prescriptions.Count</td>
+            <td class="text-end"><a class="btn btn-soft btn-icon" title="Змінити" asp-action="Edit" asp-route-id="@d.Id"><i class="bi bi-pencil"></i></a></td>
+        </tr>
+    }
+    </tbody>
+</table>
+</div>

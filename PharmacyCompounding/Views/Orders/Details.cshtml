@@ -1,0 +1,232 @@
+@model Order
+@{
+    ViewData["Title"] = $"Замовлення №{Model.Number}";
+    var lastAct = Model.ManufacturingActs.OrderByDescending(a => a.Id).FirstOrDefault();
+    var canRemake = Model.Status == OrderStatus.InProduction && lastAct?.QualityCheck is { Result: false };
+    var needsQc = Model.Status == OrderStatus.InProduction && lastAct != null && lastAct.QualityCheck == null;
+
+    // Stage timeline: the main path of the state diagram from lab 1
+    var steps = new[] { "Створене", "На перевірці", "Очікує оплати", "Оплачене", "Виготовлення", "Контроль якості", "Готове", "Видане" };
+    var icons = new[] { "bi-plus", "bi-search", "bi-credit-card", "bi-check2", "bi-eyedropper", "bi-clipboard-check", "bi-bag-check", "bi-hand-thumbs-up" };
+    int current = Model.Status switch
+    {
+        OrderStatus.Created => 0,
+        OrderStatus.UnderReview or OrderStatus.Rejected => 1,
+        OrderStatus.AwaitingPayment => 2,
+        OrderStatus.Paid or OrderStatus.AwaitingIngredients => 3,
+        OrderStatus.InProduction => needsQc ? 5 : 4,
+        OrderStatus.QualityControl => 5,
+        OrderStatus.Ready => 6,
+        OrderStatus.Issued => 7,
+        OrderStatus.Cancelled => lastAct != null ? 6 : Model.Payment != null ? 3 : 2,
+        _ => 0
+    };
+    var failed = Model.Status is OrderStatus.Rejected or OrderStatus.Cancelled;
+    var finished = Model.Status == OrderStatus.Issued;
+}
+<div class="page-head">
+    <div>
+        <a asp-action="Index" class="small fw-semibold"><i class="bi bi-arrow-left"></i> Замовлення</a>
+        <h1 class="d-flex align-items-center gap-3 mt-1">Замовлення #@Model.Number <partial name="_StatusBadge" model="Model.Status" view-data='new ViewDataDictionary(ViewData) { ["Large"] = true }' /></h1>
+        <div class="sub">Створене @Model.CreatedAt.ToString("dd.MM.yyyy о HH:mm") · планова готовність @Model.PlannedReadyDate.ToString("dd.MM.yyyy")</div>
+    </div>
+    <div class="text-end">
+        <div class="stat-label">Сума замовлення</div>
+        <div class="stat-value num">@Model.Total.ToString("N2") ₴</div>
+    </div>
+</div>
+
+<div class="panel mb-3">
+    <div class="stepper">
+        @for (var i = 0; i < steps.Length; i++)
+        {
+            var cls = i < current || (finished && i == current) ? "done" : i == current ? (failed ? "failed" : "current") : "";
+            <div class="step @cls">
+                <div class="dot">
+                    @if (cls == "done") { <i class="bi bi-check-lg"></i> }
+                    else if (cls == "failed") { <i class="bi bi-x-lg"></i> }
+                    else { <i class="bi @icons[i]"></i> }
+                </div>
+                @(cls == "failed" ? Model.Status.GetDisplayName() : steps[i])
+            </div>
+        }
+    </div>
+    @if (Model.Status == OrderStatus.AwaitingIngredients)
+    {
+        <div class="px-4 pb-3"><div class="flash flash-error mb-0"><i class="bi bi-hourglass-split"></i>Очікуються інгредієнти від постачальника — після поповнення складу повторіть виготовлення.</div></div>
+    }
+</div>
+
+<div class="row g-3">
+    <div class="col-xl-8">
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <div class="panel h-100">
+                    <div class="panel-head"><h2 class="panel-title"><i class="bi bi-person"></i>Клієнт</h2></div>
+                    <div class="panel-body d-flex gap-3 align-items-center">
+                        <partial name="_Initials" model="Model.Client?.FullName" />
+                        <div>
+                            <div class="cell-title">@Model.Client?.FullName</div>
+                            <div class="cell-sub">@Model.Client?.Phone · @Model.Client?.Email</div>
+                            <div class="cell-sub">@Model.Client?.Address</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="panel h-100">
+                    <div class="panel-head">
+                        <h2 class="panel-title"><i class="bi bi-file-earmark-medical"></i>Рецепт @Model.Prescription?.Number</h2>
+                        @if (Model.Prescription!.IsValid(DateTime.Today)) { <span class="pill st-ok">дійсний</span> } else { <span class="pill st-bad">прострочений</span> }
+                    </div>
+                    <div class="panel-body small">
+                        <div class="mb-1"><span class="text-muted">Лікар:</span> @Model.Prescription?.Doctor?.FullName, @Model.Prescription?.Doctor?.Specialization</div>
+                        <div class="mb-1"><span class="text-muted">Пацієнт:</span> @Model.Prescription?.Patient</div>
+                        <div class="mb-2"><span class="text-muted">Виписано:</span> @Model.Prescription?.IssueDate.ToString("dd.MM.yyyy"), діє @Model.Prescription?.ValidityDays днів</div>
+                        <span class="formula">@Model.Prescription?.Formula</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @foreach (var item in Model.Items)
+        {
+            <div class="panel mb-3">
+                <div class="panel-head">
+                    <h2 class="panel-title"><i class="bi bi-capsule"></i>@item.MedicineName</h2>
+                    <span class="text-muted small">@item.DosageForm · @item.Dosage · × @item.Quantity</span>
+                </div>
+                <table class="table align-middle">
+                    <thead><tr><th>Інгредієнт</th><th class="text-end">Кількість</th><th class="text-end">Ціна за од.</th><th class="text-end">Вартість</th></tr></thead>
+                    <tbody>
+                    @foreach (var c in item.Components)
+                    {
+                        <tr>
+                            <td><span class="cell-title">@c.Ingredient?.Name</span> <span class="cell-sub ms-1">@c.Ingredient?.Code</span></td>
+                            <td class="text-end num">@c.Amount.ToString("0.##") @c.Unit</td>
+                            <td class="text-end num">@c.Ingredient?.PricePerUnit.ToString("N2") ₴</td>
+                            <td class="text-end num">@c.Cost().ToString("N2") ₴</td>
+                        </tr>
+                    }
+                    <tr><td colspan="3" class="text-muted">Вартість роботи</td><td class="text-end num">@item.WorkCost.ToString("N2") ₴</td></tr>
+                    <tr class="total-row"><td colspan="3">Разом за позицію</td><td class="text-end num">@item.CalculateCost().ToString("N2") ₴</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        @if (Model.ManufacturingActs.Any())
+        {
+            <div class="panel mb-3">
+                <div class="panel-head"><h2 class="panel-title"><i class="bi bi-clipboard2-pulse"></i>Акти виготовлення та контроль якості</h2></div>
+                <table class="table align-middle">
+                    <thead><tr><th>Акт</th><th>Серія</th><th>Дата</th><th>Фармацевт-технолог</th><th>Контроль якості</th></tr></thead>
+                    <tbody>
+                    @foreach (var a in Model.ManufacturingActs.OrderBy(a => a.Id))
+                    {
+                        <tr>
+                            <td class="fw-semibold">№@a.Number</td>
+                            <td class="num">@a.Batch</td>
+                            <td class="text-muted num">@a.ManufacturedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                            <td>@a.Technologist?.FullName</td>
+                            <td>
+                                @if (a.QualityCheck == null) { <span class="pill st-wait">очікує</span> }
+                                else if (a.QualityCheck.Result) { <span class="pill st-ok">пройдено</span> }
+                                else { <span class="pill st-bad">брак</span> }
+                                @if (a.QualityCheck != null) { <div class="cell-sub mt-1">@a.QualityCheck.Pharmacist?.FullName</div> }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <div class="col-xl-4">
+        <div class="panel mb-3">
+            <div class="panel-head"><h2 class="panel-title"><i class="bi bi-lightning-charge"></i>Наступна дія</h2></div>
+            <div class="panel-body action-stack">
+                @* Each action is a separate HTML form that sends a POST request to the matching controller action *@
+                @if (Model.Status == OrderStatus.UnderReview)
+                {
+                    <p class="text-muted small mb-0">Провізор перевіряє дійсність рецепта, дозування та сумісність компонентів.</p>
+                    <form asp-action="Verify" asp-route-id="@Model.Id" method="post" class="d-grid">
+                        <button class="btn btn-brand"><i class="bi bi-search me-1"></i>Перевірити рецепт і розрахувати вартість</button>
+                    </form>
+                }
+                @if (Model.Status == OrderStatus.AwaitingPayment)
+                {
+                    <form asp-action="Pay" asp-route-id="@Model.Id" method="post" class="action-stack">
+                        <div>
+                            <label class="form-label">Спосіб оплати</label>
+                            <select name="method" class="form-select">
+                                <option>Картка</option><option>Готівка</option><option>Apple Pay / Google Pay</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-brand"><i class="bi bi-credit-card me-1"></i>Оплатити @Model.Total.ToString("N2") ₴</button>
+                    </form>
+                }
+                @if (Model.Status is OrderStatus.Paid or OrderStatus.AwaitingIngredients || canRemake)
+                {
+                    <form asp-action="Manufacture" asp-route-id="@Model.Id" method="post" class="action-stack">
+                        <div>
+                            <label class="form-label">Фармацевт-технолог</label>
+                            <select name="technologistId" asp-items="ViewBag.Technologists" class="form-select"></select>
+                        </div>
+                        <button class="btn btn-brand"><i class="bi bi-eyedropper me-1"></i>@(canRemake ? "Виготовити повторно" : "Виготовити ліки")</button>
+                    </form>
+                }
+                @if (needsQc)
+                {
+                    <form asp-action="QualityControl" asp-route-id="@Model.Id" method="post" class="action-stack">
+                        <div>
+                            <label class="form-label">Провізор</label>
+                            <select name="pharmacistId" asp-items="ViewBag.Pharmacists" class="form-select"></select>
+                        </div>
+                        <div class="qc-box">
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="organoleptic" value="true" id="qc1" checked /><label class="form-check-label" for="qc1">Органолептичний контроль</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="physical" value="true" id="qc2" checked /><label class="form-check-label" for="qc2">Фізичний контроль</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" name="chemical" value="true" id="qc3" checked /><label class="form-check-label" for="qc3">Хімічний контроль</label></div>
+                        </div>
+                        <button class="btn btn-brand"><i class="bi bi-clipboard-check me-1"></i>Провести контроль якості</button>
+                    </form>
+                }
+                @if (Model.Status == OrderStatus.Ready)
+                {
+                    <p class="text-muted small mb-0">Ліки промарковано та упаковано, клієнта сповіщено про готовність.</p>
+                    <form asp-action="Issue" asp-route-id="@Model.Id" method="post" class="d-grid">
+                        <button class="btn btn-brand"><i class="bi bi-bag-check me-1"></i>Видати ліки клієнту</button>
+                    </form>
+                }
+                @if (Model.CanChangeTo(OrderStatus.Cancelled))
+                {
+                    <form asp-action="Cancel" asp-route-id="@Model.Id" method="post" class="d-grid" onsubmit="return confirm('Скасувати замовлення?')">
+                        <button class="btn btn-ghost-danger"><i class="bi bi-x-circle me-1"></i>Скасувати замовлення</button>
+                    </form>
+                }
+                @if (Model.Status is OrderStatus.Issued or OrderStatus.Rejected or OrderStatus.Cancelled)
+                {
+                    <div class="text-muted"><i class="bi bi-lock me-1"></i>Замовлення завершене, подальші дії недоступні.</div>
+                }
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-head"><h2 class="panel-title"><i class="bi bi-wallet2"></i>Оплата</h2></div>
+            <div class="panel-body">
+                @if (Model.Payment == null) { <span class="text-muted">Ще не оплачено</span> }
+                else
+                {
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-semibold num">@Model.Payment.Amount.ToString("N2") ₴</div>
+                            <div class="cell-sub">@Model.Payment.Method · @Model.Payment.Date.ToString("dd.MM.yyyy HH:mm")</div>
+                        </div>
+                        @if (Model.Payment.Successful) { <span class="pill st-ok">успішна</span> } else { <span class="pill st-wait">повернено</span> }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

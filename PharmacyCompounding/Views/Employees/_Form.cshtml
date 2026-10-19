@@ -1,0 +1,37 @@
+@model EmployeeFormViewModel
+@{ var isNew = Model.Id == 0; }
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+<input type="hidden" asp-for="Id" />
+<div class="row g-3">
+    <div class="col-md-4">
+        <label asp-for="Type" class="form-label"></label>
+        @if (isNew)
+        {
+            <select asp-for="Type" class="form-select" id="emp-type" asp-items="@(new SelectList(EmployeeFormViewModel.Types, "Key", "Value"))"></select>
+        }
+        else
+        {
+            <input type="hidden" asp-for="Type" id="emp-type" />
+            <input class="form-control" value="@EmployeeFormViewModel.Types[Model.Type]" disabled />
+        }
+        <span asp-validation-for="Type" class="text-danger small"></span>
+    </div>
+    <div class="col-md-8"><label asp-for="FullName" class="form-label"></label><input asp-for="FullName" class="form-control" /><span asp-validation-for="FullName" class="text-danger small"></span></div>
+    <div class="col-md-6"><label asp-for="Email" class="form-label"></label><input asp-for="Email" class="form-control" autocomplete="off" /><span asp-validation-for="Email" class="text-danger small"></span></div>
+    <div class="col-md-6"><label asp-for="Password" class="form-label"></label><input asp-for="Password" class="form-control" autocomplete="new-password" placeholder="@(isNew ? "Початковий пароль" : "Залиште порожнім, щоб не змінювати")" /><span asp-validation-for="Password" class="text-danger small"></span></div>
+    <div class="col-md-4"><label asp-for="Phone" class="form-label"></label><input asp-for="Phone" class="form-control" /><span asp-validation-for="Phone" class="text-danger small"></span></div>
+    <div class="col-md-4"><label asp-for="PersonnelNumber" class="form-label"></label><input asp-for="PersonnelNumber" class="form-control" /><span asp-validation-for="PersonnelNumber" class="text-danger small"></span></div>
+    <div class="col-md-4"><label asp-for="HireDate" class="form-label"></label><input asp-for="HireDate" class="form-control" /></div>
+    <div class="col-md-6"><label asp-for="Position" class="form-label"></label><input asp-for="Position" class="form-control" /><span asp-validation-for="Position" class="text-danger small"></span></div>
+    <div class="col-md-6" data-for="@Roles.Pharmacist"><label asp-for="QualificationCategory" class="form-label"></label><input asp-for="QualificationCategory" class="form-control" placeholder="Вища / Перша / Друга" /></div>
+    <div class="col-md-6 d-flex align-items-end" data-for="@Roles.Technologist"><div class="form-check mb-2"><input asp-for="AdmittedToProduction" class="form-check-input" /><label asp-for="AdmittedToProduction" class="form-check-label"></label></div></div>
+</div>
+<script>
+    // Show only the fields of the selected subclass
+    (function () {
+        const type = document.getElementById('emp-type');
+        const sync = () => document.querySelectorAll('[data-for]').forEach(el => el.hidden = el.dataset.for !== type.value);
+        type.addEventListener('change', sync);
+        sync();
+    })();
+</script>

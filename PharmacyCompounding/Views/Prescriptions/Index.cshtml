@@ -1,0 +1,23 @@
+@model IEnumerable<Prescription>
+@{ ViewData["Title"] = "Рецепти"; }
+<div class="page-head">
+    <div><h1>Рецепти</h1><div class="sub">Рецепти, подані разом із замовленнями</div></div>
+</div>
+<div class="panel">
+<table class="table table-hover align-middle">
+    <thead><tr><th>Рецепт</th><th>Лікар</th><th>Пацієнт</th><th>Пропис</th><th>Дійсність</th><th>Замовлення</th></tr></thead>
+    <tbody>
+    @foreach (var p in Model)
+    {
+        <tr>
+            <td><div class="cell-title num">@p.Number</div><div class="cell-sub">від @p.IssueDate.ToString("dd.MM.yyyy")</div></td>
+            <td><div>@p.Doctor?.FullName</div><div class="cell-sub">@p.Doctor?.Specialization</div></td>
+            <td>@p.Patient</td>
+            <td><span class="formula small">@p.Formula</span></td>
+            <td>@if (p.IsValid(DateTime.Today)) { <span class="pill st-ok">дійсний</span> } else { <span class="pill st-bad">прострочений</span> }</td>
+            <td>@if (p.Order != null) { <a class="order-no" asp-controller="Orders" asp-action="Details" asp-route-id="@p.Order.Id">#@p.Order.Number</a> }</td>
+        </tr>
+    }
+    </tbody>
+</table>
+</div>

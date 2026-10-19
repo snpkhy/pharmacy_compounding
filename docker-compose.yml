@@ -1,0 +1,66 @@
+# PostgreSQL + pgAdmin for the PharmacyCompounding app
+# Database credentials come from .env (template: .env.example)
+# Start: docker compose up -d   (stop: docker compose down; also delete the data: docker compose down -v)
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: pharmacy-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Database web UI: http://localhost:5051 (no login; the Pharmacy server is already connected)
+  pgadmin:
+    image: dpage/pgadmin4:9
+    container_name: pharmacy-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@pharmacy.ua
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "5051:80"
+    configs:
+      - source: pgadmin_servers
+        target: /pgadmin4/servers.json
+      - source: pgadmin_pgpass
+        target: /pgpass
+        uid: "5050"       # the pgadmin user inside the container
+        mode: 0600
+    depends_on:
+      db:
+        condition: service_healthy
+
+# pgAdmin connection to the Pharmacy server, built from the same .env variables
+configs:
+  pgadmin_servers:
+    content: |
+      {
+        "Servers": {
+          "1": {
+            "Name": "Pharmacy",
+            "Group": "Servers",
+            "Host": "db",
+            "Port": 5432,
+            "MaintenanceDB": "${POSTGRES_DB}",
+            "Username": "${POSTGRES_USER}",
+            "PassFile": "/pgpass",
+            "SSLMode": "prefer"
+          }
+        }
+      }
+  pgadmin_pgpass:
+    content: "db:5432:*:${POSTGRES_USER}:${POSTGRES_PASSWORD}\n"
+
+volumes:
+  pgdata:

@@ -1,0 +1,10 @@
+@model EmployeeFormViewModel
+@{ ViewData["Title"] = "Редагування працівника"; }
+<div class="page-head"><div><a asp-action="Index" class="small fw-semibold"><i class="bi bi-arrow-left"></i> Назад до списку</a><h1 class="mt-1">Редагування: @Model.FullName</h1></div></div>
+<div class="panel"><div class="panel-body">
+<form asp-action="Edit" asp-route-id="@Model.Id" method="post">
+    <partial name="_Form" model="Model" />
+    <div class="mt-3"><button class="btn btn-brand">Зберегти зміни</button> <a asp-action="Index" class="btn btn-soft">Назад</a></div>
+</form>
+</div></div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

@@ -1,0 +1,101 @@
+@{
+    ViewData["Title"] = "Огляд";
+    var byStatus = (Dictionary<OrderStatus, int>)ViewBag.ByStatus;
+    var recent = (List<Order>)ViewBag.Recent;
+    var low = (List<Ingredient>)ViewBag.LowStock;
+    var total = byStatus.Values.Sum();
+    var active = byStatus.Where(kv => kv.Key is not (OrderStatus.Issued or OrderStatus.Rejected or OrderStatus.Cancelled)).Sum(kv => kv.Value);
+    string BarColor(OrderStatus s) => s switch
+    {
+        OrderStatus.Rejected or OrderStatus.Cancelled => "#e5484d",
+        OrderStatus.Ready or OrderStatus.Issued => "#30a46c",
+        OrderStatus.AwaitingPayment or OrderStatus.AwaitingIngredients => "#f5a524",
+        OrderStatus.InProduction or OrderStatus.QualityControl => "#0091ff",
+        OrderStatus.UnderReview => "#3e63dd",
+        _ => "#98a2b3"
+    };
+}
+<div class="page-head">
+    <div>
+        <div class="eyebrow">Рецептурна аптека</div>
+        <h1>Облік виготовлення ліків на замовлення</h1>
+        <div class="sub">Стан замовлень, оплати та залишки на складі</div>
+    </div>
+    <a class="btn btn-brand" asp-controller="Orders" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Нове замовлення</a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6 col-xl-3"><div class="panel stat"><div class="stat-icon tone-teal"><i class="bi bi-receipt"></i></div><div><div class="stat-value">@total</div><div class="stat-label">Усього замовлень · @active в роботі</div></div></div></div>
+    <div class="col-md-6 col-xl-3"><div class="panel stat"><div class="stat-icon tone-blue"><i class="bi bi-people"></i></div><div><div class="stat-value">@ViewBag.ClientsCount</div><div class="stat-label">Клієнтів</div></div></div></div>
+    <div class="col-md-6 col-xl-3"><div class="panel stat"><div class="stat-icon tone-violet"><i class="bi bi-box-seam"></i></div><div><div class="stat-value">@ViewBag.IngredientsCount</div><div class="stat-label">Інгредієнтів на складі</div></div></div></div>
+    <div class="col-md-6 col-xl-3"><div class="panel stat"><div class="stat-icon tone-amber"><i class="bi bi-cash-coin"></i></div><div><div class="stat-value num">@(((double)ViewBag.Revenue).ToString("N2")) ₴</div><div class="stat-label">Отримано оплат</div></div></div></div>
+</div>
+
+<div class="row g-3">
+    <div class="col-xl-8">
+        <div class="panel">
+            <div class="panel-head">
+                <h2 class="panel-title"><i class="bi bi-clock-history"></i>Останні замовлення</h2>
+                <a asp-controller="Orders" asp-action="Index" class="small fw-semibold">Усі замовлення <i class="bi bi-arrow-right"></i></a>
+            </div>
+            <table class="table table-hover align-middle">
+                <thead><tr><th>№</th><th>Клієнт</th><th>Створене</th><th>Статус</th><th class="text-end">Сума</th></tr></thead>
+                <tbody>
+                @foreach (var o in recent)
+                {
+                    <tr>
+                        <td><a class="order-no" asp-controller="Orders" asp-action="Details" asp-route-id="@o.Id">#@o.Number</a></td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <partial name="_Initials" model="o.Client?.FullName" />
+                                <span>@o.Client?.FullName</span>
+                            </div>
+                        </td>
+                        <td class="text-muted num">@o.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                        <td><partial name="_StatusBadge" model="o.Status" /></td>
+                        <td class="text-end fw-semibold num">@o.Total.ToString("N2") ₴</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="panel mb-3">
+            <div class="panel-head"><h2 class="panel-title"><i class="bi bi-diagram-3"></i>За статусами</h2></div>
+            <div class="panel-body d-grid gap-3">
+                @foreach (var kv in byStatus)
+                {
+                    <a asp-controller="Orders" asp-action="Index" asp-route-status="@kv.Key" class="text-reset">
+                        <div class="d-flex justify-content-between mb-1 small">
+                            <span>@kv.Key.GetDisplayName()</span><span class="fw-semibold">@kv.Value</span>
+                        </div>
+                        <div class="bar"><span style="width:@(kv.Value * 100 / Math.Max(total, 1))%;background:@BarColor(kv.Key)"></span></div>
+                    </a>
+                }
+            </div>
+        </div>
+        <div class="panel">
+            <div class="panel-head">
+                <h2 class="panel-title"><i class="bi bi-exclamation-triangle"></i>Потрібна поставка</h2>
+                <a asp-controller="Ingredients" asp-action="Index" asp-route-lowOnly="true" class="small fw-semibold">Склад</a>
+            </div>
+            <div class="panel-body d-grid gap-3">
+                @if (!low.Any())
+                {
+                    <div class="text-muted">Усі інгредієнти в достатній кількості</div>
+                }
+                @foreach (var i in low)
+                {
+                    <div>
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span class="fw-semibold">@i.Name</span>
+                            <span class="text-danger num">@i.Stock.ToString("0.##") / @i.MinStock.ToString("0.##") @i.Unit</span>
+                        </div>
+                        <div class="bar"><span style="width:@((int)(i.Stock * 100 / Math.Max(i.MinStock, 1)))%;background:#e5484d"></span></div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

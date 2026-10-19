@@ -1,0 +1,14 @@
+@model OrderStatus
+@{
+    var css = Model switch
+    {
+        OrderStatus.Rejected or OrderStatus.Cancelled => "st-bad",
+        OrderStatus.Ready or OrderStatus.Issued => "st-ok",
+        OrderStatus.AwaitingPayment or OrderStatus.AwaitingIngredients => "st-wait",
+        OrderStatus.InProduction or OrderStatus.QualityControl => "st-work",
+        OrderStatus.UnderReview => "st-review",
+        _ => "st-neutral"
+    };
+    var size = ViewData["Large"] is true ? "pill-lg" : "";
+}
+<span class="pill @css @size">@Model.GetDisplayName()</span>

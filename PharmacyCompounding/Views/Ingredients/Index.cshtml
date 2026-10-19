@@ -1,0 +1,61 @@
+@model IEnumerable<Ingredient>
+@{
+    ViewData["Title"] = "Склад";
+    var lowOnly = (bool)ViewBag.LowOnly;
+}
+<div class="page-head">
+    <div>
+        <h1>Склад</h1>
+        <div class="sub">Довідник інгредієнтів, залишки та поповнення</div>
+    </div>
+    <a class="btn btn-brand" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Додати інгредієнт</a>
+</div>
+
+<div class="panel">
+    <form asp-action="Index" method="get" class="toolbar">
+        <div class="search">
+            <i class="bi bi-search"></i>
+            <input type="text" name="search" value="@ViewBag.Search" class="form-control" placeholder="Назва або код" />
+        </div>
+        <div class="form-check ms-1">
+            <input class="form-check-input" type="checkbox" name="lowOnly" value="true" id="lowOnly" checked="@lowOnly" />
+            <label class="form-check-label" for="lowOnly">Лише нижче мінімального залишку</label>
+        </div>
+        <button class="btn btn-soft">Застосувати</button>
+    </form>
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr><th>Інгредієнт</th><th class="text-end">Ціна</th><th>Залишок</th><th>Придатний до</th><th style="width:210px">Поповнити</th><th></th></tr>
+        </thead>
+        <tbody>
+        @foreach (var i in Model)
+        {
+            var pct = (int)Math.Min(100, i.Stock * 100 / Math.Max(i.MinStock * 3, 1));
+            <tr class="@(i.IsLow ? "row-warn" : "")">
+                <td><div class="cell-title">@i.Name</div><div class="cell-sub">@i.Code</div></td>
+                <td class="text-end num">@i.PricePerUnit.ToString("N2") ₴/@i.Unit</td>
+                <td class="text-nowrap">
+                    <span class="fw-semibold num">@i.Stock.ToString("0.##") @i.Unit</span>
+                    <span class="bar stock-bar"><span style="width:@pct%;background:@(i.IsLow ? "#e5484d" : "#30a46c")"></span></span>
+                    <div class="cell-sub">мінімум @i.MinStock.ToString("0.##") @i.Unit</div>
+                </td>
+                <td class="num">@i.ExpiryDate.ToString("dd.MM.yyyy")</td>
+                <td>
+                    <form asp-action="Replenish" asp-route-id="@i.Id" method="post" class="input-group input-group-sm">
+                        <input type="number" name="amount" step="0.01" min="0.01" class="form-control" placeholder="кількість, @i.Unit" required />
+                        <button class="btn btn-soft" title="Поповнити"><i class="bi bi-plus-lg"></i></button>
+                    </form>
+                </td>
+                <td class="text-end text-nowrap">
+                    <a class="btn btn-soft btn-icon" title="Змінити" asp-action="Edit" asp-route-id="@i.Id"><i class="bi bi-pencil"></i></a>
+                    <a class="btn btn-ghost-danger btn-icon" title="Видалити" asp-action="Delete" asp-route-id="@i.Id"><i class="bi bi-trash3"></i></a>
+                </td>
+            </tr>
+        }
+        @if (!Model.Any())
+        {
+            <tr><td colspan="6" class="empty">Нічого не знайдено</td></tr>
+        }
+        </tbody>
+    </table>
+</div>

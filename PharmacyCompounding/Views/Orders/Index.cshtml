@@ -1,0 +1,61 @@
+@model IEnumerable<Order>
+@{
+    ViewData["Title"] = "Замовлення";
+    var current = (OrderStatus?)ViewBag.Status;
+    var counts = (Dictionary<OrderStatus, int>)ViewBag.Counts;
+}
+<div class="page-head">
+    <div>
+        <h1>Замовлення</h1>
+        <div class="sub">Замовлення на виготовлення ліків за рецептами лікарів</div>
+    </div>
+    <a class="btn btn-brand" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Нове замовлення</a>
+</div>
+
+<div class="panel">
+    @* The filter form uses GET, so its parameters end up in the URL query string *@
+    <form asp-action="Index" method="get" class="toolbar">
+        @if (current.HasValue) { <input type="hidden" name="status" value="@current" /> }
+        <div class="search">
+            <i class="bi bi-search"></i>
+            <input type="text" name="search" value="@ViewBag.Search" class="form-control" placeholder="Номер замовлення або ПІБ клієнта" />
+        </div>
+        <button class="btn btn-soft">Знайти</button>
+        <div class="chips ms-lg-2">
+            <a class="chip @(current == null ? "active" : "")" asp-action="Index" asp-route-search="@ViewBag.Search">Усі · @counts.Values.Sum()</a>
+            @foreach (var kv in counts.OrderBy(k => k.Key))
+            {
+                <a class="chip @(current == kv.Key ? "active" : "")" asp-action="Index" asp-route-status="@kv.Key" asp-route-search="@ViewBag.Search">@kv.Key.GetDisplayName() · @kv.Value</a>
+            }
+        </div>
+    </form>
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr><th>№</th><th>Клієнт</th><th>Рецепт</th><th>Створене</th><th>Готовність</th><th>Статус</th><th class="text-end">Сума</th><th></th></tr>
+        </thead>
+        <tbody>
+        @foreach (var o in Model)
+        {
+            <tr>
+                <td><a class="order-no" asp-action="Details" asp-route-id="@o.Id">#@o.Number</a></td>
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        <partial name="_Initials" model="o.Client?.FullName" />
+                        <div><div class="cell-title">@o.Client?.FullName</div><div class="cell-sub">@o.Client?.Phone</div></div>
+                    </div>
+                </td>
+                <td class="num">@o.Prescription?.Number</td>
+                <td class="text-muted num">@o.CreatedAt.ToString("dd.MM.yyyy HH:mm")</td>
+                <td class="num">@o.PlannedReadyDate.ToString("dd.MM.yyyy")</td>
+                <td><partial name="_StatusBadge" model="o.Status" /></td>
+                <td class="text-end fw-semibold num">@o.Total.ToString("N2") ₴</td>
+                <td class="text-end"><a class="btn btn-sm btn-soft text-nowrap" asp-action="Details" asp-route-id="@o.Id">Відкрити</a></td>
+            </tr>
+        }
+        @if (!Model.Any())
+        {
+            <tr><td colspan="8" class="empty"><i class="bi bi-inbox fs-3 d-block mb-1"></i>Замовлень не знайдено</td></tr>
+        }
+        </tbody>
+    </table>
+</div>

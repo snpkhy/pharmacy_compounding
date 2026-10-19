@@ -1,0 +1,89 @@
+@{
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString();
+    string Active(string c) => controller == c ? "active" : "";
+    var isClient = User.IsInRole(Roles.Client);
+    var isManager = User.IsInRole(Roles.Manager);
+    var roleName = isManager ? "Завідувач аптеки"
+                 : User.IsInRole(Roles.Pharmacist) ? "Провізор"
+                 : User.IsInRole(Roles.Technologist) ? "Фармацевт-технолог"
+                 : "Клієнт";
+}
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — Рецептурна аптека</title>
+    <link rel="icon" href="~/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="~/favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="~/apple-touch-icon.png" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+<div class="app">
+    <aside class="sidebar">
+        <a class="brand" asp-controller="@(isClient ? "Cabinet" : "Home")" asp-action="Index">
+            <span class="brand-mark">℞</span>
+            <span>
+                <span class="brand-title">Рецептурна аптека</span>
+                <span class="brand-sub">облік виготовлення ліків</span>
+            </span>
+        </a>
+        <nav class="side-nav">
+            @if (isClient)
+            {
+                <div class="nav-section">Кабінет</div>
+                <a class="@Active("Cabinet")" asp-controller="Cabinet" asp-action="Index"><i class="bi bi-receipt"></i>Мої замовлення</a>
+            }
+            else
+            {
+                <div class="nav-section">Робота</div>
+                <a class="@Active("Home")" asp-controller="Home" asp-action="Index"><i class="bi bi-grid-1x2"></i>Огляд</a>
+                <a class="@Active("Orders")" asp-controller="Orders" asp-action="Index"><i class="bi bi-receipt"></i>Замовлення</a>
+                <a class="@Active("Prescriptions")" asp-controller="Prescriptions" asp-action="Index"><i class="bi bi-file-earmark-medical"></i>Рецепти</a>
+                <a class="@Active("Ingredients")" asp-controller="Ingredients" asp-action="Index"><i class="bi bi-box-seam"></i>Склад</a>
+                <a class="@Active("Queries")" asp-controller="Queries" asp-action="Index"><i class="bi bi-database"></i>Запити</a>
+                <div class="nav-section">Довідники</div>
+                <a class="@Active("Clients")" asp-controller="Clients" asp-action="Index"><i class="bi bi-people"></i>Клієнти</a>
+                <a class="@Active("Doctors")" asp-controller="Doctors" asp-action="Index"><i class="bi bi-heart-pulse"></i>Лікарі</a>
+                <a class="@Active("Employees")" asp-controller="Employees" asp-action="Index"><i class="bi bi-person-badge"></i>Працівники</a>
+                <a class="@Active("Contacts")" asp-controller="Contacts" asp-action="Index"><i class="bi bi-person-badge"></i>Контакти</a>
+            }
+        </nav>
+        @if (!isClient)
+        {
+            <a class="sidebar-cta" asp-controller="Orders" asp-action="Create"><i class="bi bi-plus-lg"></i>Нове замовлення</a>
+        }
+        <div class="sidebar-user @(isClient ? "mt-auto" : "")">
+            <partial name="_Initials" model="User.Identity?.Name" />
+            <div>
+                <div class="sidebar-user-name">@User.Identity?.Name</div>
+                <div class="sidebar-user-role">@roleName</div>
+            </div>
+            <form asp-controller="Account" asp-action="Logout" method="post">
+                <button title="Вийти"><i class="bi bi-box-arrow-right"></i></button>
+            </form>
+        </div>
+    </aside>
+
+    <div class="main">
+        <main class="content">
+            @if (TempData["Message"] is string msg)
+            {
+                <div class="flash flash-success"><i class="bi bi-check-circle-fill"></i><span>@msg</span></div>
+            }
+            @if (TempData["Error"] is string err)
+            {
+                <div class="flash flash-error"><i class="bi bi-exclamation-octagon-fill"></i><span>@err</span></div>
+            }
+            @RenderBody()
+        </main>
+    </div>
+</div>
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

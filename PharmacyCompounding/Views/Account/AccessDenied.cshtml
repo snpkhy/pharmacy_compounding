@@ -1,0 +1,13 @@
+@{
+    ViewData["Title"] = "Доступ заборонено";
+    Layout = "_AuthLayout";
+}
+<div class="text-center">
+    <div class="stat-icon tone-amber mx-auto mb-3"><i class="bi bi-shield-lock"></i></div>
+    <h1 class="auth-title">Доступ заборонено</h1>
+    <p class="auth-sub">Ця сторінка доступна лише персоналу аптеки.</p>
+    <div class="d-flex flex-wrap justify-content-center gap-2">
+        <a class="btn btn-brand" asp-controller="Home" asp-action="Index">На головну</a>
+        <form asp-action="Logout" method="post"><button class="btn btn-soft">Увійти під іншим обліковим записом</button></form>
+    </div>
+</div>
