@@ -45,7 +45,7 @@ repository layer, because the domain logic is small and lives in the model class
 | `Models/`      | Domain classes from the class diagram, including behavior such as order status transitions  |
 | `Data/`        | `PharmacyContext` (mapping and relationships), `DbInitializer` (seed data), SQL interceptor |
 | `Migrations/`  | Generated EF Core migrations                                                                 |
-| `Controllers/` | One controller per area: orders, prescriptions, ingredients, clients, doctors, employees, queries, account, client cabinet |
+| `Controllers/` | One controller per area: orders, prescriptions, ingredients, clients, doctors, employees, reports, account, client cabinet |
 | `ViewModels/`  | Form and page models that don't map one-to-one to entities                                   |
 | `Views/`       | Razor views; `Shared/_Layout.cshtml` holds the sidebar layout                                |
 
@@ -150,14 +150,16 @@ short, the order moves to `AwaitingIngredients` instead.
 Docker Compose reads the same `.env` file to initialize PostgreSQL and to generate the pgAdmin server definition and
 password file (`configs` in `docker-compose.yml`), so the credentials are defined in one place.
 
-## Queries page
+## Reports
 
-`/Queries` (`QueriesController`) shows LINQ queries run against the database: filtering, aggregation over a
-user-selected period, grouping, joins, PLINQ, and bulk insert/update/delete with `ExecuteUpdate` / `ExecuteDelete`.
+`/Reports` (`ReportsController`) runs LINQ queries against the database, grouped as filtered lists, totals (aggregation
+over a user-selected period, grouping, joins, PLINQ) and maintenance tools (insert, and bulk update/delete with
+`ExecuteUpdate` / `ExecuteDelete`).
 
 To show the SQL that each LINQ query produced, `SqlCaptureInterceptor` (a singleton `DbCommandInterceptor`) appends every
-command and its parameter values to `HttpContext.Items` for the current request. The view renders them under the result.
-`QueryViewModel` describes the form parameters, result table and totals, so all queries share a single view.
+command and its parameter values to `HttpContext.Items` for the current request. The view renders them in a collapsed
+panel under the result. `ReportViewModel` describes the form parameters, result table and totals, so all reports share a
+single view.
 
 ## Key decisions
 

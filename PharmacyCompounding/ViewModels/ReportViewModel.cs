@@ -3,19 +3,18 @@ using PharmacyCompounding.Models;
 
 namespace PharmacyCompounding.ViewModels
 {
-    // Description and result of one query on the Queries page: form parameters, table, totals, executed SQL
-    public class QueryViewModel
+    // Description and result of one report: form parameters, table, totals, executed SQL
+    public class ReportViewModel
     {
         public string Action { get; set; } = string.Empty;
-        public int Number { get; set; }
         public string Title { get; set; } = string.Empty;
         public string Kind { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
 
-        // Queries that change data are sent with POST
+        // Reports that change data are sent with POST
         public bool IsPost { get; set; }
         public string SubmitText { get; set; } = "Виконати";
-        public List<QueryParam> Params { get; } = new();
+        public List<ReportParam> Params { get; } = new();
 
         public string? Message { get; set; }
         public string? Error { get; set; }
@@ -28,9 +27,9 @@ namespace PharmacyCompounding.ViewModels
 
         public List<string> Sql { get; set; } = new();
 
-        public QueryViewModel Param(string name, string label, string type, object? value, IEnumerable<SelectListItem>? options = null)
+        public ReportViewModel Param(string name, string label, string type, object? value, IEnumerable<SelectListItem>? options = null)
         {
-            Params.Add(new QueryParam { Name = name, Label = label, Type = type, Value = Format(value, forInput: true), Options = options?.ToList() });
+            Params.Add(new ReportParam { Name = name, Label = label, Type = type, Value = Format(value, forInput: true), Options = options?.ToList() });
             return this;
         }
 
@@ -64,7 +63,7 @@ namespace PharmacyCompounding.ViewModels
         };
     }
 
-    public class QueryParam
+    public class ReportParam
     {
         public string Name { get; set; } = string.Empty;
         public string Label { get; set; } = string.Empty;

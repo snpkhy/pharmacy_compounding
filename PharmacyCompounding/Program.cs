@@ -23,7 +23,7 @@ builder.Services.Configure<Microsoft.Extensions.WebEncoders.WebEncoderOptions>(o
 
 // Register the data context (PostgreSQL): host and port come from appsettings.json, credentials from .env.
 // Table and column names are snake_case: Orders.CreatedAt → orders.created_at
-// The interceptor records the executed SQL to show it on the Queries page.
+// The interceptor records the executed SQL to show it on the report pages.
 var connection = new NpgsqlConnectionStringBuilder(builder.Configuration.GetConnectionString("PharmacyDb"))
 {
     Database = Required("POSTGRES_DB"),

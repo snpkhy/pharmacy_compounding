@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 namespace PharmacyCompounding.Data
 {
     // Captures the SQL commands EF Core sends to PostgreSQL while handling a request,
-    // so the Queries page can show what SQL a LINQ query turned into
+    // so a report page can show what SQL its LINQ query turned into
     public class SqlCaptureInterceptor : DbCommandInterceptor
     {
         private const string Key = "CapturedSql";

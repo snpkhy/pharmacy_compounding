@@ -1,0 +1,51 @@
+@{
+    ViewData["Title"] = "Звіти";
+    var groups = new[]
+    {
+        ("Вибірки", "bi-funnel", new[]
+        {
+            ("Orders", "bi-receipt", "Замовлення за період", "Відбір за датою, статусом і клієнтом"),
+            ("Doctors", "bi-heart-pulse", "Лікарі та їхні рецепти", "Хто з лікарів скільки рецептів виписав"),
+            ("Shortages", "bi-exclamation-triangle", "Проблемні залишки", "Нижче мінімуму, прострочені або скоро спливають"),
+        }),
+        ("Підсумки", "bi-graph-up", new[]
+        {
+            ("Revenue", "bi-cash-coin", "Виручка за період", "День, місяць або півріччя; розбивка за способом оплати"),
+            ("Monthly", "bi-calendar3", "Виручка по місяцях", "Кількість оплат, сума, середній і найбільший чек"),
+            ("Consumption", "bi-droplet-half", "Витрата інгредієнтів", "Скільки сировини пішло на виготовлення"),
+            ("Technologists", "bi-person-gear", "Робота технологів", "Акти виготовлення, брак і частка браку"),
+            ("Cost", "bi-calculator", "Собівартість ліків", "Сировина, робота й частка сировини в ціні"),
+        }),
+        ("Обслуговування", "bi-tools", new[]
+        {
+            ("AddDoctor", "bi-person-plus", "Додати лікаря", "Новий запис у довіднику лікарів"),
+            ("Reprice", "bi-percent", "Переоцінка інгредієнтів", "Зміна цін складу на вказаний відсоток"),
+            ("Cleanup", "bi-trash3", "Очищення скасованих замовлень", "Видалення давніх скасованих замовлень і їхніх рецептів"),
+        }),
+    };
+}
+<div class="page-head">
+    <div>
+        <h1>Звіти</h1>
+        <div class="sub">Вибірки й підсумки за замовленнями, виручкою та складом</div>
+    </div>
+</div>
+
+@foreach (var (title, icon, reports) in groups)
+{
+    <h2 class="report-group"><i class="bi @icon"></i>@title</h2>
+    <div class="row g-3 mb-4">
+        @foreach (var (action, cardIcon, name, hint) in reports)
+        {
+            <div class="col-md-6 col-xl-4">
+                <a class="panel report-card" asp-action="@action">
+                    <span class="report-icon"><i class="bi @cardIcon"></i></span>
+                    <span>
+                        <span class="cell-title d-block">@name</span>
+                        <span class="cell-sub">@hint</span>
+                    </span>
+                </a>
+            </div>
+        }
+    </div>
+}

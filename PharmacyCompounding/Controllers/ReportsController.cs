@@ -8,18 +8,18 @@ using PharmacyCompounding.ViewModels;
 
 namespace PharmacyCompounding.Controllers
 {
-    // Lab 3: LINQ queries against the PostgreSQL database (filtering, aggregation, data changes)
-    public class QueriesController : Controller
+    // Reports: LINQ queries against the PostgreSQL database (filtering, aggregation, data maintenance)
+    public class ReportsController : Controller
     {
         private readonly PharmacyContext _db;
 
-        public QueriesController(PharmacyContext db) => _db = db;
+        public ReportsController(PharmacyContext db) => _db = db;
 
         // Statuses in which the medicine has been manufactured (ingredients written off)
         private static readonly OrderStatus[] Manufactured =
             { OrderStatus.InProduction, OrderStatus.QualityControl, OrderStatus.Ready, OrderStatus.Issued };
 
-        // GET: /Queries — list of queries
+        // GET: /Reports — list of reports
         [HttpGet]
         public IActionResult Index() => View();
 
@@ -31,8 +31,8 @@ namespace PharmacyCompounding.Controllers
         {
             var dateFrom = from ?? DateTime.Today.AddMonths(-6);
             var dateTo = to ?? DateTime.Today;
-            var vm = Describe(nameof(Orders), 1, "Відбір", "Замовлення за період",
-                "Замовлення, створені у вказаний період; додатково можна відібрати за статусом і клієнтом. Дані з таблиць orders, users, prescriptions, doctors, order_items.");
+            var vm = Describe(nameof(Orders), "Вибірки", "Замовлення за період",
+                "Замовлення, створені у вказаний період, з відбором за статусом і клієнтом.");
             vm.Param("from", "Дата з", "date", dateFrom)
               .Param("to", "Дата по", "date", dateTo)
               .Param("status", "Статус", "select", status, StatusOptions(status))
@@ -70,8 +70,8 @@ namespace PharmacyCompounding.Controllers
         [HttpGet]
         public async Task<IActionResult> Doctors(string? specialization, int minPrescriptions = 1)
         {
-            var vm = Describe(nameof(Doctors), 2, "Відбір", "Лікарі та їхні рецепти",
-                "Лікарі обраної спеціалізації, які виписали не менше вказаної кількості рецептів, з датою останнього рецепта. Запит записано синтаксисом виразів запитів LINQ (from … where … select).");
+            var vm = Describe(nameof(Doctors), "Вибірки", "Лікарі та їхні рецепти",
+                "Лікарі обраної спеціалізації, які виписали не менше вказаної кількості рецептів, і дата їхнього останнього рецепта.");
             var specs = await _db.Doctors.Where(d => d.Specialization != null)
                                          .Select(d => d.Specialization!).Distinct().OrderBy(s => s).ToListAsync();
             vm.Param("specialization", "Спеціалізація", "select", specialization,
@@ -105,8 +105,8 @@ namespace PharmacyCompounding.Controllers
         [HttpGet]
         public async Task<IActionResult> Shortages(int? warehouseId, string mode = "all", int days = 30)
         {
-            var vm = Describe(nameof(Shortages), 3, "Відбір", "Проблемні залишки на складі",
-                "Інгредієнти, залишок яких нижчий за мінімальний, а також прострочені або ті, що спливають протягом вказаної кількості днів.");
+            var vm = Describe(nameof(Shortages), "Вибірки", "Проблемні залишки на складі",
+                "Інгредієнти, яких менше за мінімальний залишок, а також прострочені або ті, термін яких спливає найближчим часом.");
             vm.Param("warehouseId", "Склад", "select", warehouseId, await WarehouseOptions(warehouseId, allowAll: true))
               .Param("mode", "Що шукати", "select", mode, new[]
               {
@@ -161,8 +161,8 @@ namespace PharmacyCompounding.Controllers
                 _ => (new DateTime(day.Year, day.Month, 1), new DateTime(day.Year, day.Month, 1).AddMonths(1), $"за {day:MMMM yyyy}")
             };
 
-            var vm = Describe(nameof(Revenue), 4, "Узагальнення", "Виручка за період",
-                "Сума успішних оплат за день, місяць або півріччя, що містить вказану дату, з розбивкою за способом оплати (Sum, Count, Average, GroupBy).");
+            var vm = Describe(nameof(Revenue), "Підсумки", "Виручка за період",
+                "Виручка за день, місяць або півріччя, що містить вказану дату, з розбивкою за способом оплати.");
             vm.Param("period", "Період", "select", period, new[]
               {
                   new SelectListItem("День", "day", period == "day"),
@@ -194,8 +194,8 @@ namespace PharmacyCompounding.Controllers
         [HttpGet]
         public async Task<IActionResult> Monthly(int months = 6)
         {
-            var vm = Describe(nameof(Monthly), 5, "Узагальнення", "Виручка по місяцях",
-                "Групування успішних оплат за роком і місяцем: кількість, сума, середня та найбільша оплата за кожен місяць.");
+            var vm = Describe(nameof(Monthly), "Підсумки", "Виручка по місяцях",
+                "Кількість оплат, виручка, середній і найбільший чек за кожен місяць.");
             vm.Param("months", "Останні місяців", "number", months);
 
             var since = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(-(months - 1));
@@ -229,8 +229,8 @@ namespace PharmacyCompounding.Controllers
         {
             var dateFrom = from ?? DateTime.Today.AddMonths(-6);
             var dateTo = to ?? DateTime.Today;
-            var vm = Describe(nameof(Consumption), 6, "Узагальнення", "Витрата інгредієнтів",
-                "Скільки кожного інгредієнта витрачено на виготовлені замовлення за період і на яку суму. Таблиці components, order_items, orders та ingredients з'єднано оператором join, результат згруповано за інгредієнтом.");
+            var vm = Describe(nameof(Consumption), "Підсумки", "Витрата інгредієнтів",
+                "Скільки кожного інгредієнта витрачено на виготовлені замовлення за період і на яку суму.");
             vm.Param("from", "Дата з", "date", dateFrom)
               .Param("to", "Дата по", "date", dateTo);
 
@@ -265,7 +265,7 @@ namespace PharmacyCompounding.Controllers
         [HttpGet]
         public async Task<IActionResult> Technologists()
         {
-            var vm = Describe(nameof(Technologists), 7, "Узагальнення", "Робота фармацевтів-технологів",
+            var vm = Describe(nameof(Technologists), "Підсумки", "Робота фармацевтів-технологів",
                 "Для кожного технолога: кількість актів виготовлення, з них прийнятих і забракованих на контролі якості, частка браку.");
 
             var stats = await _db.Technologists
@@ -294,8 +294,8 @@ namespace PharmacyCompounding.Controllers
         [HttpGet]
         public async Task<IActionResult> Cost()
         {
-            var vm = Describe(nameof(Cost), 8, "Узагальнення", "Собівартість ліків (PLINQ)",
-                "Позиції замовлень завантажуються з БД, після чого вартість сировини, роботи й частка сировини в ціні обчислюються паралельно (AsParallel) і групуються за назвою ліків.");
+            var vm = Describe(nameof(Cost), "Підсумки", "Собівартість ліків",
+                "Вартість сировини й роботи для кожного виду ліків і частка сировини в ціні.");
 
             var items = await _db.OrderItems.AsNoTracking()
                 .Include(i => i.Components).ThenInclude(c => c.Ingredient)
@@ -357,7 +357,7 @@ namespace PharmacyCompounding.Controllers
             {
                 _db.Doctors.Add(doctor);
                 await _db.SaveChangesAsync();
-                vm.Message = $"Додано лікаря «{doctor.FullName}» (id = {doctor.Id})";
+                vm.Message = $"Додано лікаря «{doctor.FullName}»";
             }
             await RecentDoctors(vm);
             return Show(vm);
@@ -421,19 +421,19 @@ namespace PharmacyCompounding.Controllers
 
         // ---------- Helpers ----------
 
-        private IActionResult Show(QueryViewModel vm)
+        private IActionResult Show(ReportViewModel vm)
         {
             vm.Sql = SqlCaptureInterceptor.For(HttpContext);
-            return View("Query", vm);
+            return View("Report", vm);
         }
 
-        private static QueryViewModel Describe(string action, int number, string kind, string title, string description) =>
-            new() { Action = action, Number = number, Kind = kind, Title = title, Description = description };
+        private static ReportViewModel Describe(string action, string kind, string title, string description) =>
+            new() { Action = action, Kind = kind, Title = title, Description = description };
 
-        private static QueryViewModel DescribeAddDoctor(Doctor d)
+        private static ReportViewModel DescribeAddDoctor(Doctor d)
         {
-            var vm = Describe(nameof(AddDoctor), 9, "Доповнення", "Додати лікаря",
-                "Додавання нового запису до таблиці doctors (INSERT). Нижче — останні додані лікарі.");
+            var vm = Describe(nameof(AddDoctor), "Обслуговування", "Додати лікаря",
+                "Внесення нового лікаря до довідника. Нижче — нещодавно додані лікарі.");
             vm.IsPost = true;
             vm.SubmitText = "Додати";
             return vm.Param(nameof(Doctor.FullName), "ПІБ", "text", d.FullName)
@@ -442,27 +442,27 @@ namespace PharmacyCompounding.Controllers
                      .Param(nameof(Doctor.LicenseNumber), "Номер ліцензії", "text", d.LicenseNumber);
         }
 
-        private async Task RecentDoctors(QueryViewModel vm)
+        private async Task RecentDoctors(ReportViewModel vm)
         {
             var doctors = await _db.Doctors.OrderByDescending(d => d.Id).Take(5).ToListAsync();
-            vm.ResultTitle = "Останні 5 записів таблиці doctors";
-            vm.Table("Id", "Лікар", "Спеціалізація", "Заклад", "Ліцензія");
+            vm.ResultTitle = "Нещодавно додані лікарі";
+            vm.Table("Лікар", "Спеціалізація", "Заклад", "Ліцензія");
             foreach (var d in doctors)
-                vm.Row(d.Id, d.FullName, d.Specialization, d.Institution, d.LicenseNumber);
-            vm.Total("Лікарів у базі", await _db.Doctors.CountAsync());
+                vm.Row(d.FullName, d.Specialization, d.Institution, d.LicenseNumber);
+            vm.Total("Лікарів у довіднику", await _db.Doctors.CountAsync());
         }
 
-        private async Task<QueryViewModel> DescribeReprice(int? warehouseId, decimal percent)
+        private async Task<ReportViewModel> DescribeReprice(int? warehouseId, decimal percent)
         {
-            var vm = Describe(nameof(Reprice), 10, "Зміна", "Переоцінка інгредієнтів",
-                "Зміна ціни всіх інгредієнтів обраного складу на вказаний відсоток одним запитом UPDATE (ExecuteUpdate). Від'ємний відсоток — знижка.");
+            var vm = Describe(nameof(Reprice), "Обслуговування", "Переоцінка інгредієнтів",
+                "Зміна ціни всіх інгредієнтів обраного складу на вказаний відсоток. Від'ємний відсоток — знижка.");
             vm.IsPost = true;
             vm.SubmitText = "Змінити ціни";
             return vm.Param("warehouseId", "Склад", "select", warehouseId, await WarehouseOptions(warehouseId, allowAll: false))
                      .Param("percent", "Зміна, %", "number", percent);
         }
 
-        private async Task WarehousePrices(QueryViewModel vm, int? warehouseId)
+        private async Task WarehousePrices(ReportViewModel vm, int? warehouseId)
         {
             var id = warehouseId ?? await _db.Warehouses.OrderBy(w => w.Id).Select(w => w.Id).FirstAsync();
             var items = await _db.Ingredients.Where(i => i.WarehouseId == id).OrderBy(i => i.Code).ToListAsync();
@@ -473,27 +473,27 @@ namespace PharmacyCompounding.Controllers
             vm.Total("Вартість залишків складу, ₴", items.Sum(i => i.PricePerUnit * (decimal)i.Stock));
         }
 
-        private static QueryViewModel DescribeCleanup(int days)
+        private static ReportViewModel DescribeCleanup(int days)
         {
-            var vm = Describe(nameof(Cleanup), 11, "Вилучення", "Очищення скасованих замовлень",
-                "Видалення скасованих замовлень, створених раніше ніж N днів тому (DELETE через ExecuteDelete), разом із позиціями й компонентами (каскадно), а потім — рецептів, що залишилися без замовлення.");
+            var vm = Describe(nameof(Cleanup), "Обслуговування", "Очищення скасованих замовлень",
+                "Видалення давніх скасованих замовлень разом із їхніми позиціями та рецептами, які більше ніде не використовуються.");
             vm.IsPost = true;
             vm.SubmitText = "Видалити";
             return vm.Param("days", "Старші за, днів", "number", days);
         }
 
-        private async Task CancelledOrders(QueryViewModel vm)
+        private async Task CancelledOrders(ReportViewModel vm)
         {
             var orders = await _db.Orders.Where(o => o.Status == OrderStatus.Cancelled)
                 .OrderBy(o => o.CreatedAt)
                 .Select(o => new { o.Number, o.CreatedAt, Client = o.Client!.FullName, Rx = o.Prescription!.Number, o.Total })
                 .ToListAsync();
-            vm.ResultTitle = "Скасовані замовлення в базі";
+            vm.ResultTitle = "Скасовані замовлення";
             vm.Table("№", "Створено", "Клієнт", "Рецепт", "Сума, ₴", "Днів тому");
             foreach (var o in orders)
                 vm.Row(o.Number, o.CreatedAt, o.Client, o.Rx, o.Total, (DateTime.Today - o.CreatedAt.Date).Days);
             vm.Total("Скасованих замовлень", orders.Count);
-            vm.Total("Рецептів у базі", await _db.Prescriptions.CountAsync());
+            vm.Total("Рецептів усього", await _db.Prescriptions.CountAsync());
         }
 
         private static IEnumerable<SelectListItem> StatusOptions(OrderStatus? selected) =>

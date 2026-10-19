@@ -1,11 +1,11 @@
-@model PharmacyCompounding.ViewModels.QueryViewModel
+@model PharmacyCompounding.ViewModels.ReportViewModel
 @{
-    ViewData["Title"] = $"Запит {Model.Number}. {Model.Title}";
+    ViewData["Title"] = Model.Title;
 }
 <div class="page-head">
     <div>
-        <div class="cell-sub"><a asp-action="Index">Запити</a> / @Model.Kind</div>
-        <h1>Запит @Model.Number. @Model.Title</h1>
+        <div class="cell-sub"><a asp-action="Index">Звіти</a> / @Model.Kind</div>
+        <h1>@Model.Title</h1>
         <div class="sub">@Model.Description</div>
     </div>
 </div>
@@ -22,10 +22,10 @@
 @if (Model.Params.Count > 0)
 {
     <div class="panel mb-3">
-        <form asp-action="@Model.Action" method="@(Model.IsPost ? "post" : "get")" class="query-form">
+        <form asp-action="@Model.Action" method="@(Model.IsPost ? "post" : "get")" class="report-form">
             @foreach (var p in Model.Params)
             {
-                <div class="query-field">
+                <div class="report-field">
                     <label class="form-label" for="@p.Name">@p.Label</label>
                     @if (p.Type == "select")
                     {
@@ -90,16 +90,17 @@
 
 @if (Model.Sql.Count > 0)
 {
-    <div class="panel">
-        <div class="panel-head">
-            <h2 class="panel-title"><i class="bi bi-database"></i>SQL, виконаний у PostgreSQL</h2>
-            <span class="cell-sub">команд: @Model.Sql.Count</span>
-        </div>
+    @* Executed SQL, collapsed by default *@
+    <details class="panel sql-details">
+        <summary class="panel-head">
+            <span class="panel-title"><i class="bi bi-code-slash"></i>SQL-запити</span>
+            <span class="cell-sub">@Model.Sql.Count</span>
+        </summary>
         <div class="panel-body">
             @foreach (var sql in Model.Sql)
             {
                 <pre class="sql">@sql</pre>
             }
         </div>
-    </div>
+    </details>
 }

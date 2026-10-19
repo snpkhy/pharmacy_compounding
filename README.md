@@ -64,11 +64,12 @@ Open http://localhost:5051. No login is needed, and the **Pharmacy** server is a
 To connect from another client (DBeaver, DataGrip, psql), use host `localhost:5432` and the database,
 user and password from `.env`.
 
-## LINQ queries
+## Reports
 
-The **Queries** page (`/Queries`) runs 11 LINQ queries against the database: filtering, revenue for a chosen
-day, month or half-year, grouping, joins, PLINQ, and insert, update (`ExecuteUpdate`) and delete (`ExecuteDelete`).
-Each result shows the SQL that EF Core sent to PostgreSQL.
+The **Reports** page (`/Reports`) has 11 reports built with LINQ: filtered lists, revenue for a chosen day, month or
+half-year, monthly totals, ingredient usage, technologist performance, medicine cost (PLINQ), and maintenance tools
+that insert, update (`ExecuteUpdate`) and delete (`ExecuteDelete`) data. Each page has a collapsible
+**SQL-запити** panel with the SQL that EF Core sent to PostgreSQL.
 
 ## Migrations
 
