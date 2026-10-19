@@ -1,199 +1,172 @@
 # Architecture
 
-ASP.NET Core MVC (.NET 8) + Entity Framework Core (Code First) + PostgreSQL (in Docker, together with pgAdmin).
-The UI is server-rendered Razor pages styled with Bootstrap 5. The UI text is in Ukrainian.
+Pharmacy Compounding is a server-rendered ASP.NET Core MVC application (.NET 8) for a pharmacy that makes medicines to
+prescription. It tracks an order from the prescription check through manufacturing and quality control to payment and
+pickup. Data is stored in PostgreSQL and accessed through Entity Framework Core (Code First).
 
-## How a request flows
+## System context
 
-```
-Browser ──GET /Orders/Details/5──►  Program.cs (routing, authentication, role check)
-                                        │
-                                        ▼
-                          Controllers/OrdersController.Details(id = 5)
-                                        │  reads and changes data through PharmacyContext (EF Core)
-                                        ▼
-                          Views/Orders/Details.cshtml  ◄── Order model
-                                        │  rendered inside Views/Shared/_Layout.cshtml (sidebar)
-                                        ▼
-                                    HTML page
-```
+```mermaid
+flowchart LR
+    staff([Pharmacy staff]) -->|HTTP :5050| app
+    client([Client]) -->|HTTP :5050| app
+    app["PharmacyCompounding<br/>ASP.NET Core MVC"] -->|EF Core / Npgsql| db[("PostgreSQL 17<br/>database: pharmacy")]
+    admin([Developer]) -->|HTTP :5051| pgadmin["pgAdmin 4"] --> db
 
-The URL `/{Controller}/{Action}/{id?}` maps to the `{Controller}Controller` class and its `{Action}` method.
-The method returns `View(...)`, and MVC looks for the file `Views/{Controller}/{Action}.cshtml`.
-For example, `/Orders` → `OrdersController.Index()` → `Views/Orders/Index.cshtml`.
-
-## Where things live
-
-```
-pharmacy_compounding/
-├── README.md               how to run the project
-├── .env.example            .env template: PostgreSQL database name, user and password
-├── docker-compose.yml      PostgreSQL + pgAdmin (with a pre-configured database connection)
-├── pharmacy_compounding.sln
-├── docs/ARCHITECTURE.md    this file
-└── PharmacyCompounding/
-    ├── Program.cs          entry point: service registration (database, authentication, roles),
-    │                       migrations and test data on startup, default route
-    ├── appsettings.json    database host and port (localhost:5432); credentials come from .env
-    │
-    ├── Models/             M: domain classes (from the lab 1 class diagram)
-    │   ├── Users.cs        User → Client / Employee → Pharmacist, PharmTechnologist, PharmacyManager;
-    │   │                   roles (Roles), password hashing, User.Login()
-    │   ├── Order.cs        Order and the allowed status transitions (state diagram)
-    │   ├── OrderStatus.cs  order statuses
-    │   ├── OrderItem.cs    order item and its components
-    │   ├── Prescription.cs, Doctor.cs, Ingredient.cs, Warehouse.cs,
-    │   ├── Payment.cs, Production.cs (manufacturing act + quality check)
-    │   └── EnumExtensions.cs   GetDisplayName(): the Ukrainian name of an enum value
-    │
-    ├── Data/
-    │   ├── PharmacyContext.cs  DbContext: tables (DbSet) and the relationships between them
-    │   ├── DbInitializer.cs    test data + the default manager
-    │   └── SqlCaptureInterceptor.cs  records the executed SQL for the Queries page
-    ├── Migrations/         generated EF Core migrations (do not edit by hand)
-    │
-    ├── ViewModels/         data for specific forms that doesn't map one-to-one to a model
-    │   ├── OrderCreateViewModel.cs   New order form
-    │   ├── AccountViewModels.cs      sign-in and sign-up forms
-    │   ├── EmployeeFormViewModel.cs  employee form (one for all roles)
-    │   └── QueryViewModel.cs         parameters, result table and SQL of one query
-    │
-    ├── Controllers/        C: handle requests
-    │   ├── HomeController         dashboard; redirects clients to their account
-    │   ├── AccountController      sign-in, sign-up, sign-out, access denied
-    │   ├── CabinetController      client account: only their own orders
-    │   ├── OrdersController       orders and their whole lifecycle
-    │   ├── PrescriptionsController, IngredientsController (warehouse),
-    │   ├── ClientsController, DoctorsController
-    │   ├── EmployeesController    staff list; only the manager can add and edit employees
-    │   └── QueriesController      lab 3: LINQ queries (filtering, aggregation, PLINQ, INSERT/UPDATE/DELETE)
-    │
-    ├── Views/              V: Razor templates (.cshtml = HTML + C#)
-    │   ├── _ViewImports.cshtml    shared usings and tag helpers for all views
-    │   ├── _ViewStart.cshtml      default layout (_Layout)
-    │   ├── Shared/
-    │   │   ├── _Layout.cshtml     page frame: SIDEBAR, messages, CSS/JS and icons
-    │   │   ├── _AuthLayout.cshtml frame for the sign-in and sign-up pages (no sidebar)
-    │   │   ├── _StatusBadge, _Initials   small reusable partials
-    │   │   └── Error.cshtml
-    │   └── {Controller}/{Action}.cshtml  pages; _Form.cshtml is the shared form for Create/Edit
-    │
-    └── wwwroot/            static files, served as is
-        ├── css/site.css    OUR styles: colors, sidebar, panels, tables, statuses
-        ├── favicon.svg     ℞ icon in the browser tab (+ favicon.ico and apple-touch-icon.png for older browsers and iOS)
-        └── lib/            third-party libraries (do not edit): bootstrap, bootstrap-icons,
-                            jquery, jquery-validation (+ unobtrusive)
+    subgraph Docker Compose
+        db
+        pgadmin
+    end
 ```
 
-## Access and roles
+- The app runs on the host with `dotnet run`; PostgreSQL and pgAdmin run in Docker Compose.
+- The UI is in Ukrainian and uses the `uk-UA` culture (with `.` as the decimal separator to match `<input type="number">`).
 
-Configured in `Program.cs`:
+## Tech stack
 
-- **By default** every page is available to staff only (`FallbackPolicy`: Pharmacist, Technologist, Manager).
-- `[AllowAnonymous]`: available without signing in (`AccountController`, the error page).
-- `[Authorize(Roles = Roles.Client)]`: clients only (`CabinetController`).
-- `[Authorize(Roles = Roles.Manager)]`: the manager only (Create/Edit/Delete in `EmployeesController`).
+| Concern         | Choice                                                                  |
+|-----------------|-------------------------------------------------------------------------|
+| Web framework   | ASP.NET Core MVC, Razor views, .NET 8                                   |
+| Data access     | EF Core 8, Npgsql provider, `EFCore.NamingConventions` (snake_case)     |
+| Database        | PostgreSQL 17 (`postgres:17-alpine`), pgAdmin 4 for inspection          |
+| Auth            | Cookie authentication, role-based authorization, PBKDF2 password hashes |
+| UI              | Bootstrap 5.1, Bootstrap Icons, jQuery unobtrusive validation           |
+| Configuration   | `appsettings.json` + `.env` (loaded with `DotNetEnv`)                   |
 
-The attribute can go on a whole controller or on a single action. Roles are stored in the cookie at sign-in (`AccountController.SignIn`).
+There is no frontend build step: static assets are served from `wwwroot/` as is.
 
-## CSS: which framework is used
+## Application structure
 
-- **Bootstrap 5.1** (`wwwroot/lib/bootstrap`): a CSS framework with a grid (`row`, `col-md-6`), spacing (`mt-3`, `mb-2`, `gap-3`),
-  flex utilities (`d-flex`, `align-items-center`), forms (`form-control`, `form-select`, `form-label`) and tables (`table`, `table-hover`).
-  Docs: https://getbootstrap.com/docs/5.1/
-- **Bootstrap Icons 1.11** (`wwwroot/lib/bootstrap-icons`): icons, e.g. `<i class="bi bi-receipt"></i>`.
-  Catalog with names: https://icons.getbootstrap.com/
-- **site.css**: our own styles on top of Bootstrap. It defines the colors (the `--brand`, `--muted` etc. variables in `:root`)
-  and our classes: `sidebar`, `panel` / `panel-head` / `panel-body` (cards), `page-head` (page header),
-  `btn-brand` / `btn-soft` / `btn-ghost-danger` (buttons), `pill st-ok` / `st-bad` / ... (status badges),
-  `stat` (dashboard tiles), `flash` (messages), `auth-*` (sign-in pages).
-- **jQuery + jquery-validation-unobtrusive**: only for client-side form validation based on the `[Required]`, `[EmailAddress]`
-  etc. attributes in the models. Enabled on a page with `<partial name="_ValidationScriptsPartial" />`.
+The project follows the standard MVC layout. Controllers use `PharmacyContext` directly; there is no separate service or
+repository layer, because the domain logic is small and lives in the model classes themselves.
 
-There is no frontend build (npm, webpack): the files are included with `<link>` and `<script>` tags in `_Layout.cshtml`.
+| Folder         | Responsibility                                                                               |
+|----------------|----------------------------------------------------------------------------------------------|
+| `Models/`      | Domain classes from the class diagram, including behavior such as order status transitions  |
+| `Data/`        | `PharmacyContext` (mapping and relationships), `DbInitializer` (seed data), SQL interceptor |
+| `Migrations/`  | Generated EF Core migrations                                                                 |
+| `Controllers/` | One controller per area: orders, prescriptions, ingredients, clients, doctors, employees, queries, account, client cabinet |
+| `ViewModels/`  | Form and page models that don't map one-to-one to entities                                   |
+| `Views/`       | Razor views; `Shared/_Layout.cshtml` holds the sidebar layout                                |
 
-## How to add a sidebar button (example: Reports)
+### Request flow
 
-It takes three steps: **controller → view → sidebar link**.
-
-### 1. Controller: `Controllers/ReportsController.cs`
-
-```csharp
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using PharmacyCompounding.Data;
-
-namespace PharmacyCompounding.Controllers
-{
-    public class ReportsController : Controller
-    {
-        private readonly PharmacyContext _db;
-
-        public ReportsController(PharmacyContext db) => _db = db;   // the database is injected automatically
-
-        // GET: /Reports
-        [HttpGet]
-        public async Task<IActionResult> Index()
-        {
-            var revenue = await _db.Payments.Where(p => p.Successful).SumAsync(p => (double)p.Amount);
-            ViewBag.Revenue = revenue;
-            return View(await _db.Ingredients.OrderBy(i => i.Name).ToListAsync());   // → Views/Reports/Index.cshtml
-        }
-    }
-}
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant P as Middleware (Program.cs)
+    participant C as OrdersController
+    participant D as PharmacyContext
+    participant V as Views/Orders/Details.cshtml
+    B->>P: GET /Orders/Details/5
+    P->>P: routing, authentication, authorization
+    P->>C: Details(id: 5)
+    C->>D: load order with items, payment, acts
+    D-->>C: Order
+    C->>V: View(order)
+    V-->>B: HTML (inside _Layout)
 ```
 
-The class name must end with `Controller`; the part before it (`Reports`) becomes the URL `/Reports`.
+State-changing actions (verify, pay, manufacture, quality control, issue, cancel) are separate `POST` endpoints protected
+with anti-forgery tokens. Each one loads the order, calls a domain method, saves and redirects back to the details page
+(Post/Redirect/Get), with the outcome shown through `TempData`.
 
-### 2. View: `Views/Reports/Index.cshtml`
+## Domain model
 
-Folder name = controller name, file name = action name.
-
-```cshtml
-@model IEnumerable<Ingredient>
-@{ ViewData["Title"] = "Звіти"; }
-<div class="page-head">
-    <div><h1>Звіти</h1><div class="sub">Виручка: @(((double)ViewBag.Revenue).ToString("N2")) ₴</div></div>
-</div>
-<div class="panel">
-    <table class="table table-hover align-middle">
-        <thead><tr><th>Інгредієнт</th><th class="text-end">Залишок</th></tr></thead>
-        <tbody>
-        @foreach (var i in Model)
-        {
-            <tr><td class="cell-title">@i.Name</td><td class="text-end num">@i.Stock @i.Unit</td></tr>
-        }
-        </tbody>
-    </table>
-</div>
+```mermaid
+erDiagram
+    users ||--o{ orders : "client places"
+    doctors ||--o{ prescriptions : writes
+    prescriptions ||--|| orders : "is filled by"
+    orders ||--o{ order_items : contains
+    order_items ||--o{ components : "made of"
+    ingredients ||--o{ components : "used in"
+    warehouses ||--o{ ingredients : stores
+    orders ||--o| payments : "paid by"
+    orders ||--o{ manufacturing_acts : "manufactured in"
+    users ||--o{ manufacturing_acts : "technologist makes"
+    manufacturing_acts ||--o| quality_checks : "checked by"
+    users ||--o{ quality_checks : "pharmacist performs"
 ```
 
-`_Layout.cshtml` with the sidebar is applied automatically (through `_ViewStart.cshtml`), so you only write the page content.
-The `page-head`, `panel` and `table` classes make it look like the other pages.
+- **Users** use Table-Per-Hierarchy: `Client`, `Pharmacist`, `PharmTechnologist` and `PharmacyManager` share the `users`
+  table, and the `user_type` discriminator also serves as the authorization role.
+- **Composition** (order → items → components) uses `ON DELETE CASCADE`. Payments and manufacturing acts are deleted with
+  their order, and quality checks with their act.
+- **References** to independent entities (client, doctor, prescription, ingredient, warehouse, technologist, pharmacist)
+  use `ON DELETE RESTRICT`, so history can't lose its references.
+- Unique indexes: `users.email`, `orders.number`, `ingredients.code`.
+- `orders.status` is stored as a string, so the data stays readable in SQL.
 
-### 3. Link: `Views/Shared/_Layout.cshtml`
+### Order lifecycle
 
-In the `<nav class="side-nav">` block, in the `else` branch (staff menu), add a line:
+Allowed transitions are defined in `Order.Transitions` and enforced by `Order.ChangeStatus`, which throws on an invalid
+transition. Controllers never set `Status` directly.
 
-```cshtml
-<a class="@Active("Reports")" asp-controller="Reports" asp-action="Index"><i class="bi bi-bar-chart"></i>Звіти</a>
+```mermaid
+stateDiagram-v2
+    [*] --> Created
+    Created --> UnderReview
+    Created --> Cancelled
+    UnderReview --> AwaitingPayment
+    UnderReview --> Rejected
+    AwaitingPayment --> Paid
+    AwaitingPayment --> Cancelled
+    Paid --> InProduction
+    Paid --> AwaitingIngredients
+    Paid --> Cancelled
+    AwaitingIngredients --> Paid
+    AwaitingIngredients --> Cancelled
+    InProduction --> QualityControl
+    QualityControl --> Ready
+    QualityControl --> InProduction : batch rejected
+    Ready --> Issued
+    Ready --> Cancelled
+    Rejected --> [*]
+    Issued --> [*]
+    Cancelled --> [*]
 ```
 
-- `asp-controller` / `asp-action`: where the button leads (Razor builds `href="/Reports"`).
-- `@Active("Reports")`: highlights the item while this page is open.
-- `bi bi-bar-chart`: the icon; pick any from https://icons.getbootstrap.com/
-- `<div class="nav-section">Name</div>`: a group heading, if you need a new group.
-- A button for clients goes in the `@if (isClient)` branch.
+Starting manufacturing checks stock, writes off the ingredients and creates a manufacturing act. If an ingredient is
+short, the order moves to `AwaitingIngredients` instead.
 
-### Extras, depending on the task
+## Security
 
-| Need | What to do |
+- **Authentication:** cookie-based, 7-day sliding expiration. Passwords are stored as PBKDF2 hashes.
+- **Authorization:** a fallback policy requires a staff role (Pharmacist, Technologist or Manager) on every endpoint.
+  Exceptions are explicit: `[AllowAnonymous]` for sign-in and sign-up, `[Authorize(Roles = Roles.Client)]` for the
+  client cabinet, `[Authorize(Roles = Roles.Manager)]` for staff management.
+- **Sign-up:** only clients can register themselves; employees are created by the manager.
+- **Secrets:** database credentials live in `.env`, which is git-ignored. `appsettings.json` only has the host and port.
+
+## Configuration and startup
+
+1. `DotNetEnv` loads `.env` from the nearest parent directory without overriding variables that are already set.
+2. The connection string is built from `ConnectionStrings:PharmacyDb` (host and port) plus `POSTGRES_DB`,
+   `POSTGRES_USER` and `POSTGRES_PASSWORD`. A missing variable stops startup with a clear error.
+3. On startup the app runs `Database.Migrate()` and `DbInitializer.Seed()`, so an empty database is created and seeded
+   automatically. Seeding is skipped if data already exists, and a default manager account is always ensured.
+
+Docker Compose reads the same `.env` file to initialize PostgreSQL and to generate the pgAdmin server definition and
+password file (`configs` in `docker-compose.yml`), so the credentials are defined in one place.
+
+## Queries page
+
+`/Queries` (`QueriesController`) shows LINQ queries run against the database: filtering, aggregation over a
+user-selected period, grouping, joins, PLINQ, and bulk insert/update/delete with `ExecuteUpdate` / `ExecuteDelete`.
+
+To show the SQL that each LINQ query produced, `SqlCaptureInterceptor` (a singleton `DbCommandInterceptor`) appends every
+command and its parameter values to `HttpContext.Items` for the current request. The view renders them under the result.
+`QueryViewModel` describes the form parameters, result table and totals, so all queries share a single view.
+
+## Key decisions
+
+| Decision | Reason |
 |---|---|
-| Manager only | `[Authorize(Roles = Roles.Manager)]` on the controller + wrap the link in `@if (isManager) { ... }` in `_Layout` |
-| Available to clients | `[Authorize(Roles = Roles.Client)]` on the controller, link in the `isClient` branch |
-| A form that saves something | a pair of actions `[HttpGet] Create()` (empty form) and `[HttpPost] [ValidateAntiForgeryToken] Create(Model m)` (save + `RedirectToAction`); in the view `<form asp-action="Create" method="post">`. Working example: `DoctorsController` + `Views/Doctors` |
-| A new database table | class in `Models/` → `DbSet<...>` in `PharmacyContext` → `dotnet ef migrations add Name --project PharmacyCompounding` from the repository root → the migration is applied on startup |
-| A message after an action | `TempData["Message"] = "..."` (green) or `TempData["Error"] = "..."` (red); `_Layout` shows it on the next page |
-| Custom styles | add a class to `wwwroot/css/site.css`, using the color variables from `:root` if needed |
-
-After changes, run `dotnet run` in the `PharmacyCompounding` folder (or restart it if it's already running).
+| PostgreSQL in Docker instead of SQL Server LocalDB | LocalDB is Windows-only; Docker gives the same setup on any OS with one command |
+| Code First with migrations | The schema follows the class diagram and is versioned with the code |
+| Table-Per-Hierarchy for users | One login table, simple role lookup, and polymorphic queries over employees |
+| snake_case naming | PostgreSQL folds unquoted identifiers to lower case, so hand-written SQL works without quotes |
+| Domain logic in models, no service layer | The app is small; status rules stay next to the data they protect |
+| `Npgsql.EnableLegacyTimestampBehavior` | Dates in the domain have no time zone, so they are stored as `timestamp without time zone` |
+| Credentials in `.env` | Keeps secrets out of git and shares one source of truth between the app and Docker Compose |
