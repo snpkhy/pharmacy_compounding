@@ -18,7 +18,7 @@
             <td>@if (p.Order != null) { <a class="order-no" asp-controller="Orders" asp-action="Details" asp-route-id="@p.Order.Id">#@p.Order.Number</a> }</td>
             <td class="text-end">
                 @* A prescription is edited together with its order, until the pharmacist has verified it *@
-                @if (p.Order is { IsEditable: true })
+                @if (p.Order is { IsEditable: true } && User.CanEdit())
                 {
                     <a class="btn btn-soft btn-icon" title="Змінити" asp-controller="Orders" asp-action="Edit" asp-route-id="@p.Order.Id"><i class="bi bi-pencil"></i></a>
                 }

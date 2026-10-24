@@ -40,6 +40,9 @@ namespace PharmacyCompounding.Models
         public int WarehouseId { get; set; }
         public Warehouse? Warehouse { get; set; }
 
+        // Row version (PostgreSQL xmin): detects that someone else changed the row since it was read
+        public uint Version { get; set; }
+
         public bool IsSufficient(double amount) => Stock >= amount;
 
         public bool IsLow => Stock < MinStock;

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -33,6 +34,7 @@ namespace PharmacyCompounding.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = Roles.Pharmacy)]
         public async Task<IActionResult> Create()
         {
             await FillWarehouses();
@@ -41,6 +43,7 @@ namespace PharmacyCompounding.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Pharmacy)]
         public async Task<IActionResult> Create(Ingredient ingredient)
         {
             if (await _db.Ingredients.AnyAsync(i => i.Code == ingredient.Code))
@@ -57,6 +60,7 @@ namespace PharmacyCompounding.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = Roles.Pharmacy)]
         public async Task<IActionResult> Edit(int id)
         {
             var ingredient = await _db.Ingredients.FindAsync(id);
@@ -67,6 +71,7 @@ namespace PharmacyCompounding.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Pharmacy)]
         public async Task<IActionResult> Edit(int id, Ingredient ingredient)
         {
             if (id != ingredient.Id) return BadRequest();
@@ -77,8 +82,29 @@ namespace PharmacyCompounding.Controllers
                 await FillWarehouses();
                 return View(ingredient);
             }
+            // Update() sends "WHERE id = @id AND xmin = @Version": the version comes from the hidden form field
             _db.Update(ingredient);
-            await _db.SaveChangesAsync();
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                var current = (Ingredient?)(await ex.Entries.Single().GetDatabaseValuesAsync())?.ToObject();
+                if (current == null)
+                {
+                    TempData["Error"] = "Інгредієнт уже видалив інший користувач";
+                    return RedirectToAction(nameof(Index));
+                }
+                // Show the current values and take the new version, so saving again overwrites them on purpose
+                ModelState.AddModelError("", $"Поки ви редагували, запис змінив інший користувач. Зараз у базі: " +
+                    $"ціна {current.PricePerUnit:0.00} грн, залишок {current.Stock:0.##} {current.Unit}, мінімум {current.MinStock:0.##}. " +
+                    "Перевірте дані й збережіть ще раз, щоб записати свої значення");
+                ModelState.Remove(nameof(Ingredient.Version));
+                ingredient.Version = current.Version;
+                await FillWarehouses();
+                return View(ingredient);
+            }
             TempData["Message"] = $"Зміни для «{ingredient.Name}» збережено";
             return RedirectToAction(nameof(Index));
         }
@@ -100,10 +126,15 @@ namespace PharmacyCompounding.Controllers
             {
                 TempData["Error"] = "Кількість для поповнення має бути більшою за нуль";
             }
+            catch (DbUpdateConcurrencyException)
+            {
+                TempData["Error"] = $"Залишок «{ingredient.Name}» щойно змінив інший користувач. Повторіть поповнення";
+            }
             return RedirectToAction(nameof(Index));
         }
 
         [HttpGet]
+        [Authorize(Roles = Roles.Manager)]
         public async Task<IActionResult> Delete(int id)
         {
             var ingredient = await _db.Ingredients.Include(i => i.Warehouse).FirstOrDefaultAsync(i => i.Id == id);
@@ -112,6 +143,7 @@ namespace PharmacyCompounding.Controllers
 
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Manager)]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var ingredient = await _db.Ingredients.FindAsync(id);

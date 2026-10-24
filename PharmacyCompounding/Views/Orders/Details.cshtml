@@ -23,6 +23,10 @@
     };
     var failed = Model.Status is OrderStatus.Rejected or OrderStatus.Cancelled;
     var finished = Model.Status == OrderStatus.Issued;
+    // Which actions the current user's role allows (the controller checks the same roles)
+    var canEdit = User.CanEdit();
+    var waitsForOther = !finished && Model.Status is not (OrderStatus.Rejected or OrderStatus.Cancelled) &&
+        (Model.Status is OrderStatus.Paid or OrderStatus.AwaitingIngredients || canRemake ? !User.CanManufacture() : !canEdit);
 }
 <div class="page-head">
     <div>
@@ -148,14 +152,14 @@
             <div class="panel-head"><h2 class="panel-title"><i class="bi bi-lightning-charge"></i>Наступна дія</h2></div>
             <div class="panel-body action-stack">
                 @* Each action is a separate HTML form that sends a POST request to the matching controller action *@
-                @if (Model.Status == OrderStatus.UnderReview)
+                @if (Model.Status == OrderStatus.UnderReview && canEdit)
                 {
                     <p class="text-muted small mb-0">Провізор перевіряє дійсність рецепта, дозування та сумісність компонентів.</p>
                     <form asp-action="Verify" asp-route-id="@Model.Id" method="post" class="d-grid">
                         <button class="btn btn-brand"><i class="bi bi-search me-1"></i>Перевірити рецепт і розрахувати вартість</button>
                     </form>
                 }
-                @if (Model.Status == OrderStatus.AwaitingPayment)
+                @if (Model.Status == OrderStatus.AwaitingPayment && canEdit)
                 {
                     <form asp-action="Pay" asp-route-id="@Model.Id" method="post" class="action-stack">
                         <div>
@@ -167,7 +171,7 @@
                         <button class="btn btn-brand"><i class="bi bi-credit-card me-1"></i>Оплатити @Model.Total.ToString("N2") ₴</button>
                     </form>
                 }
-                @if (Model.Status is OrderStatus.Paid or OrderStatus.AwaitingIngredients || canRemake)
+                @if ((Model.Status is OrderStatus.Paid or OrderStatus.AwaitingIngredients || canRemake) && User.CanManufacture())
                 {
                     <form asp-action="Manufacture" asp-route-id="@Model.Id" method="post" class="action-stack">
                         <div>
@@ -177,7 +181,7 @@
                         <button class="btn btn-brand"><i class="bi bi-eyedropper me-1"></i>@(canRemake ? "Виготовити повторно" : "Виготовити ліки")</button>
                     </form>
                 }
-                @if (needsQc)
+                @if (needsQc && canEdit)
                 {
                     <form asp-action="QualityControl" asp-route-id="@Model.Id" method="post" class="action-stack">
                         <div>
@@ -192,31 +196,36 @@
                         <button class="btn btn-brand"><i class="bi bi-clipboard-check me-1"></i>Провести контроль якості</button>
                     </form>
                 }
-                @if (Model.Status == OrderStatus.Ready)
+                @if (Model.Status == OrderStatus.Ready && canEdit)
                 {
                     <p class="text-muted small mb-0">Ліки промарковано та упаковано, клієнта сповіщено про готовність.</p>
                     <form asp-action="Issue" asp-route-id="@Model.Id" method="post" class="d-grid">
                         <button class="btn btn-brand"><i class="bi bi-bag-check me-1"></i>Видати ліки клієнту</button>
                     </form>
                 }
-                @if (Model.CanChangeTo(OrderStatus.Cancelled))
+                @if (Model.CanChangeTo(OrderStatus.Cancelled) && canEdit)
                 {
                     <form asp-action="Cancel" asp-route-id="@Model.Id" method="post" class="d-grid" onsubmit="return confirm('Скасувати замовлення?')">
                         <button class="btn btn-ghost-danger"><i class="bi bi-x-circle me-1"></i>Скасувати замовлення</button>
                     </form>
                 }
+                @if (waitsForOther)
+                {
+                    <div class="text-muted"><i class="bi bi-person-lock me-1"></i>@(Model.Status is OrderStatus.Paid or OrderStatus.AwaitingIngredients || canRemake
+                        ? "Очікує виготовлення фармацевтом-технологом." : "Наступну дію виконує провізор.")</div>
+                }
                 @if (Model.Status is OrderStatus.Issued or OrderStatus.Rejected or OrderStatus.Cancelled)
                 {
                     <div class="text-muted"><i class="bi bi-lock me-1"></i>Замовлення завершене, подальші дії недоступні.</div>
                 }
-                @if (Model.IsEditable || Model.CanBeDeleted)
+                @if (Model.IsEditable && canEdit || Model.CanBeDeleted && User.CanDelete())
                 {
                     <div class="d-flex gap-2">
-                        @if (Model.IsEditable)
+                        @if (Model.IsEditable && canEdit)
                         {
                             <a class="btn btn-soft flex-fill" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil me-1"></i>Редагувати</a>
                         }
-                        @if (Model.CanBeDeleted)
+                        @if (Model.CanBeDeleted && User.CanDelete())
                         {
                             <a class="btn btn-ghost-danger flex-fill" asp-action="Delete" asp-route-id="@Model.Id"><i class="bi bi-trash3 me-1"></i>Видалити</a>
                         }
