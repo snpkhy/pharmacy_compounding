@@ -209,6 +209,19 @@
                 {
                     <div class="text-muted"><i class="bi bi-lock me-1"></i>Замовлення завершене, подальші дії недоступні.</div>
                 }
+                @if (Model.IsEditable || Model.CanBeDeleted)
+                {
+                    <div class="d-flex gap-2">
+                        @if (Model.IsEditable)
+                        {
+                            <a class="btn btn-soft flex-fill" asp-action="Edit" asp-route-id="@Model.Id"><i class="bi bi-pencil me-1"></i>Редагувати</a>
+                        }
+                        @if (Model.CanBeDeleted)
+                        {
+                            <a class="btn btn-ghost-danger flex-fill" asp-action="Delete" asp-route-id="@Model.Id"><i class="bi bi-trash3 me-1"></i>Видалити</a>
+                        }
+                    </div>
+                }
             </div>
         </div>
 

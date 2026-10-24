@@ -13,11 +13,13 @@ namespace PharmacyCompounding.Controllers
 
         public IngredientsController(PharmacyContext db) => _db = db;
 
-        // GET: /Ingredients?search=...&lowOnly=true
+        // GET: /Ingredients?search=...&lowOnly=true&warehouseId=2
         [HttpGet]
-        public async Task<IActionResult> Index(string? search, bool lowOnly = false)
+        public async Task<IActionResult> Index(string? search, bool lowOnly = false, int? warehouseId = null)
         {
             var query = _db.Ingredients.Include(i => i.Warehouse).AsQueryable();
+            if (warehouseId.HasValue)
+                query = query.Where(i => i.WarehouseId == warehouseId.Value);
             if (!string.IsNullOrWhiteSpace(search))
                 query = query.Where(i => EF.Functions.ILike(i.Name, $"%{search}%") || EF.Functions.ILike(i.Code, $"%{search}%"));
             if (lowOnly)
@@ -25,6 +27,8 @@ namespace PharmacyCompounding.Controllers
 
             ViewBag.Search = search;
             ViewBag.LowOnly = lowOnly;
+            ViewBag.WarehouseId = warehouseId;
+            ViewBag.Warehouses = new SelectList(await _db.Warehouses.OrderBy(w => w.Name).ToListAsync(), "Id", "Name", warehouseId);
             return View(await query.OrderBy(i => i.Code).ToListAsync());
         }
 
