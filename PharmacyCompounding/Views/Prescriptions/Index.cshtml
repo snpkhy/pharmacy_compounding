@@ -5,7 +5,7 @@
 </div>
 <div class="panel">
 <table class="table table-hover align-middle">
-    <thead><tr><th>Рецепт</th><th>Лікар</th><th>Пацієнт</th><th>Пропис</th><th>Дійсність</th><th>Замовлення</th></tr></thead>
+    <thead><tr><th>Рецепт</th><th>Лікар</th><th>Пацієнт</th><th>Пропис</th><th>Дійсність</th><th>Замовлення</th><th></th></tr></thead>
     <tbody>
     @foreach (var p in Model)
     {
@@ -16,6 +16,13 @@
             <td><span class="formula small">@p.Formula</span></td>
             <td>@if (p.IsValid(DateTime.Today)) { <span class="pill st-ok">дійсний</span> } else { <span class="pill st-bad">прострочений</span> }</td>
             <td>@if (p.Order != null) { <a class="order-no" asp-controller="Orders" asp-action="Details" asp-route-id="@p.Order.Id">#@p.Order.Number</a> }</td>
+            <td class="text-end">
+                @* A prescription is edited together with its order, until the pharmacist has verified it *@
+                @if (p.Order is { IsEditable: true })
+                {
+                    <a class="btn btn-soft btn-icon" title="Змінити" asp-controller="Orders" asp-action="Edit" asp-route-id="@p.Order.Id"><i class="bi bi-pencil"></i></a>
+                }
+            </td>
         </tr>
     }
     </tbody>

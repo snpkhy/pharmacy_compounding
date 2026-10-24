@@ -62,6 +62,14 @@ namespace PharmacyCompounding.Models
 
         public bool CanChangeTo(OrderStatus next) => Transitions[Status].Contains(next);
 
+        // The order and its prescription can be corrected until the pharmacist has verified the prescription
+        public bool IsEditable => Status is OrderStatus.Created or OrderStatus.UnderReview;
+
+        // Only orders that never reached manufacturing and hold no money can be deleted
+        public bool CanBeDeleted =>
+            (Status is OrderStatus.Created or OrderStatus.UnderReview or OrderStatus.Rejected or OrderStatus.Cancelled) &&
+            !ManufacturingActs.Any() && Payment is not { Successful: true };
+
         public void ChangeStatus(OrderStatus next)
         {
             if (!CanChangeTo(next))

@@ -47,5 +47,23 @@ namespace PharmacyCompounding.Controllers
             TempData["Message"] = "Дані лікаря оновлено";
             return RedirectToAction(nameof(Index));
         }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var doctor = await _db.Doctors.Include(d => d.Prescriptions).FirstOrDefaultAsync(d => d.Id == id);
+            if (doctor == null) return NotFound();
+            // Prescriptions refer to the doctor with ON DELETE RESTRICT
+            if (doctor.Prescriptions.Any())
+                TempData["Error"] = $"Неможливо видалити лікаря «{doctor.FullName}»: у базі є виписані ним рецепти";
+            else
+            {
+                _db.Doctors.Remove(doctor);
+                await _db.SaveChangesAsync();
+                TempData["Message"] = $"Лікаря «{doctor.FullName}» видалено";
+            }
+            return RedirectToAction(nameof(Index));
+        }
     }
 }

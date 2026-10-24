@@ -110,6 +110,70 @@ namespace PharmacyCompounding.Controllers
             return RedirectToAction(nameof(Details), new { id = order.Id });
         }
 
+        // GET: /Orders/Edit/5 — the order form filled with the current data
+        [HttpGet]
+        public async Task<IActionResult> Edit(int id)
+        {
+            var order = await LoadOrder(id);
+            if (order == null) return NotFound();
+            if (!order.IsEditable) return NotEditable(order);
+            await FillLists();
+            return View(OrderEditViewModel.From(order));
+        }
+
+        // POST: /Orders/Edit/5 — saves the order, its prescription, item and components, recalculates the total
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(int id, OrderEditViewModel vm)
+        {
+            var order = await LoadOrder(id);
+            if (order == null) return NotFound();
+            if (!order.IsEditable) return NotEditable(order);
+            vm.Id = id;
+            vm.Number = order.Number;
+
+            if (!vm.Components.Any(c => c.IngredientId.HasValue && c.Amount > 0))
+                ModelState.AddModelError("", "Додайте хоча б один компонент");
+            if (await _db.Prescriptions.AnyAsync(p => p.Number == vm.PrescriptionNumber && p.Id != order.PrescriptionId))
+                ModelState.AddModelError(nameof(vm.PrescriptionNumber), "Рецепт з таким номером уже використано");
+            if (!ModelState.IsValid)
+            {
+                await FillLists();
+                return View(vm);
+            }
+
+            vm.ApplyTo(order, await _db.Ingredients.ToDictionaryAsync(i => i.Id));
+            await _db.SaveChangesAsync();
+            TempData["Message"] = $"Зміни в замовленні №{order.Number} збережено. Нова сума: {order.Total:0.00} грн";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // GET: /Orders/Delete/5 — deletion confirmation page
+        [HttpGet]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var order = await LoadOrder(id);
+            if (order == null) return NotFound();
+            if (!order.CanBeDeleted) return await Fail(id, "Замовлення, яке вже оплачене або виготовлялося, видалити не можна — його можна лише скасувати");
+            return View(order);
+        }
+
+        // POST: /Orders/Delete/5 — deletes the order with its items, components and payment (cascade) and its prescription
+        [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteConfirmed(int id)
+        {
+            var order = await LoadOrder(id);
+            if (order == null) return NotFound();
+            if (!order.CanBeDeleted) return await Fail(id, "Замовлення, яке вже оплачене або виготовлялося, видалити не можна — його можна лише скасувати");
+
+            _db.Orders.Remove(order);
+            _db.Prescriptions.Remove(order.Prescription!);
+            await _db.SaveChangesAsync();
+            TempData["Message"] = $"Замовлення №{order.Number} і рецепт {order.Prescription!.Number} видалено";
+            return RedirectToAction(nameof(Index));
+        }
+
         // POST: /Orders/Verify/5 — the pharmacist verifies the prescription
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -258,6 +322,12 @@ namespace PharmacyCompounding.Controllers
         {
             TempData["Error"] = error;
             return Task.FromResult<IActionResult>(RedirectToAction(nameof(Details), new { id }));
+        }
+
+        private IActionResult NotEditable(Order order)
+        {
+            TempData["Error"] = $"Замовлення у стані «{order.Status.GetDisplayName()}» змінювати не можна: рецепт уже перевірено";
+            return RedirectToAction(nameof(Details), new { id = order.Id });
         }
 
         private static bool IsRemakeAllowed(Order order) =>

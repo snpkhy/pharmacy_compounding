@@ -17,6 +17,9 @@
             <i class="bi bi-search"></i>
             <input type="text" name="search" value="@ViewBag.Search" class="form-control" placeholder="Назва або код" />
         </div>
+        <select name="warehouseId" asp-items="ViewBag.Warehouses" class="form-select w-auto">
+            <option value="">Усі склади</option>
+        </select>
         <div class="form-check ms-1">
             <input class="form-check-input" type="checkbox" name="lowOnly" value="true" id="lowOnly" checked="@lowOnly" />
             <label class="form-check-label" for="lowOnly">Лише нижче мінімального залишку</label>
@@ -32,7 +35,7 @@
         {
             var pct = (int)Math.Min(100, i.Stock * 100 / Math.Max(i.MinStock * 3, 1));
             <tr class="@(i.IsLow ? "row-warn" : "")">
-                <td><div class="cell-title">@i.Name</div><div class="cell-sub">@i.Code</div></td>
+                <td><div class="cell-title">@i.Name</div><div class="cell-sub">@i.Code · @i.Warehouse?.Name</div></td>
                 <td class="text-end num">@i.PricePerUnit.ToString("N2") ₴/@i.Unit</td>
                 <td class="text-nowrap">
                     <span class="fw-semibold num">@i.Stock.ToString("0.##") @i.Unit</span>

@@ -1,0 +1,23 @@
+@model OrderEditViewModel
+@{
+    ViewData["Title"] = $"Редагування замовлення №{Model.Number}";
+}
+<div class="page-head">
+    <div>
+        <a asp-action="Details" asp-route-id="@Model.Id" class="small fw-semibold"><i class="bi bi-arrow-left"></i> Замовлення #@Model.Number</a>
+        <h1 class="mt-1">Редагування замовлення #@Model.Number</h1>
+        <div class="sub">Замовлення і рецепт можна виправити до перевірки рецепта провізором. Сума буде перерахована</div>
+    </div>
+</div>
+
+<form asp-action="Edit" asp-route-id="@Model.Id" method="post">
+    <partial name="_OrderForm" model="Model" />
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-brand"><i class="bi bi-check2 me-1"></i>Зберегти зміни</button>
+        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-soft">Скасувати</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

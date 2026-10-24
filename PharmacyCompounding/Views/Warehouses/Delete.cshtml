@@ -1,0 +1,17 @@
+@model Warehouse
+@{ ViewData["Title"] = "Видалення складу"; }
+<div class="page-head"><div><a asp-action="Index" class="small fw-semibold"><i class="bi bi-arrow-left"></i> Назад до списку</a><h1 class="mt-1">Видалити склад?</h1></div></div>
+<div class="panel"><div class="panel-body">
+    <dl class="kv mb-3">
+        <dt>Назва</dt><dd>@Model.Name</dd>
+        <dt>Адреса</dt><dd>@Model.Address</dd>
+        <dt>Інгредієнтів</dt><dd>@Model.Ingredients.Count</dd>
+    </dl>
+    @if (Model.Ingredients.Any())
+    {
+        <div class="flash flash-error"><i class="bi bi-exclamation-octagon-fill"></i><span>На складі зберігаються інгредієнти. Спочатку перемістіть їх на інший склад або видаліть.</span></div>
+    }
+    <form asp-action="Delete" asp-route-id="@Model.Id" method="post">
+        <button class="btn btn-ghost-danger" disabled="@Model.Ingredients.Any()">Видалити</button> <a asp-action="Index" class="btn btn-soft">Скасувати</a>
+    </form>
+</div></div>
