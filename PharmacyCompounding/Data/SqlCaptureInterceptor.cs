@@ -41,15 +41,18 @@ namespace PharmacyCompounding.Data
 
         private void Capture(DbCommand command)
         {
-            var context = _http.HttpContext;
-            if (context == null) return;
-            if (context.Items[Key] is not List<string> list)
-                context.Items[Key] = list = new List<string>();
-
             // Parameter values are added as comments above the command text
             var parameters = command.Parameters.Cast<DbParameter>()
                 .Select(p => $"-- {p.ParameterName} = {Format(p.Value)}");
-            list.Add(string.Join("\n", parameters.Append(command.CommandText.Trim())));
+            Add(_http.HttpContext, string.Join("\n", parameters.Append(command.CommandText.Trim())));
+        }
+
+        internal static void Add(HttpContext? context, string sql)
+        {
+            if (context == null) return;
+            if (context.Items[Key] is not List<string> list)
+                context.Items[Key] = list = new List<string>();
+            list.Add(sql);
         }
 
         private static string Format(object? value) => value switch
@@ -58,7 +61,38 @@ namespace PharmacyCompounding.Data
             string s => $"'{s}'",
             DateTime d => $"'{d:yyyy-MM-dd HH:mm:ss}'",
             IFormattable f => f.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
+            System.Collections.IEnumerable list => "{" + string.Join(", ", list.Cast<object?>().Select(Format)) + "}",
             _ => value.ToString() ?? ""
         };
+    }
+
+    // Adds the transaction boundaries (BEGIN / COMMIT / ROLLBACK) to the same list of captured SQL
+    public class TransactionCaptureInterceptor : DbTransactionInterceptor
+    {
+        private readonly IHttpContextAccessor _http;
+
+        public TransactionCaptureInterceptor(IHttpContextAccessor http) => _http = http;
+
+        public override ValueTask<DbTransaction> TransactionStartedAsync(DbConnection connection, TransactionEndEventData eventData, DbTransaction result, CancellationToken cancellationToken = default)
+        {
+            SqlCaptureInterceptor.Add(_http.HttpContext, $"BEGIN TRANSACTION ISOLATION LEVEL {IsolationName(result.IsolationLevel)}");
+            return ValueTask.FromResult(result);
+        }
+
+        // ReadCommitted → READ COMMITTED, as in SQL
+        private static string IsolationName(System.Data.IsolationLevel level) =>
+            System.Text.RegularExpressions.Regex.Replace(level.ToString(), "(?<=[a-z])(?=[A-Z])", " ").ToUpperInvariant();
+
+        public override Task TransactionCommittedAsync(DbTransaction transaction, TransactionEndEventData eventData, CancellationToken cancellationToken = default)
+        {
+            SqlCaptureInterceptor.Add(_http.HttpContext, "COMMIT");
+            return Task.CompletedTask;
+        }
+
+        public override Task TransactionRolledBackAsync(DbTransaction transaction, TransactionEndEventData eventData, CancellationToken cancellationToken = default)
+        {
+            SqlCaptureInterceptor.Add(_http.HttpContext, "ROLLBACK");
+            return Task.CompletedTask;
+        }
     }
 }

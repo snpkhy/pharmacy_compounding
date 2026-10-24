@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -45,6 +46,7 @@ namespace PharmacyCompounding.Controllers
 
         // GET: /Orders/Create — returns an empty form
         [HttpGet]
+        [Authorize(Roles = Roles.Pharmacy)]
         public async Task<IActionResult> Create()
         {
             await FillLists();
@@ -54,6 +56,7 @@ namespace PharmacyCompounding.Controllers
         // POST: /Orders/Create — accepts the form data and creates an order with its prescription
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Pharmacy)]
         public async Task<IActionResult> Create(OrderCreateViewModel vm)
         {
             var components = vm.Components.Where(c => c.IngredientId.HasValue && c.Amount > 0).ToList();
@@ -87,7 +90,6 @@ namespace PharmacyCompounding.Controllers
 
             var order = new Order
             {
-                Number = (await _db.Orders.MaxAsync(o => (int?)o.Number) ?? 1000) + 1,
                 ClientId = vm.ClientId,
                 PlannedReadyDate = vm.PlannedReadyDate,
                 Prescription = new Prescription
@@ -112,6 +114,7 @@ namespace PharmacyCompounding.Controllers
 
         // GET: /Orders/Edit/5 — the order form filled with the current data
         [HttpGet]
+        [Authorize(Roles = Roles.Pharmacy)]
         public async Task<IActionResult> Edit(int id)
         {
             var order = await LoadOrder(id);
@@ -124,6 +127,7 @@ namespace PharmacyCompounding.Controllers
         // POST: /Orders/Edit/5 — saves the order, its prescription, item and components, recalculates the total
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Pharmacy)]
         public async Task<IActionResult> Edit(int id, OrderEditViewModel vm)
         {
             var order = await LoadOrder(id);
@@ -143,13 +147,26 @@ namespace PharmacyCompounding.Controllers
             }
 
             vm.ApplyTo(order, await _db.Ingredients.ToDictionaryAsync(i => i.Id));
-            await _db.SaveChangesAsync();
+            // The version the user saw when opening the form: if the order has changed since, saving fails
+            _db.Entry(order).Property(o => o.Version).OriginalValue = vm.Version;
+            // The orders row is always updated, so the version check runs even if only the prescription or items changed
+            _db.Entry(order).Property(o => o.PlannedReadyDate).IsModified = true;
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                TempData["Error"] = ConcurrencyError;
+                return RedirectToAction(nameof(Details), new { id });
+            }
             TempData["Message"] = $"Зміни в замовленні №{order.Number} збережено. Нова сума: {order.Total:0.00} грн";
             return RedirectToAction(nameof(Details), new { id });
         }
 
         // GET: /Orders/Delete/5 — deletion confirmation page
         [HttpGet]
+        [Authorize(Roles = Roles.Manager)]
         public async Task<IActionResult> Delete(int id)
         {
             var order = await LoadOrder(id);
@@ -161,6 +178,7 @@ namespace PharmacyCompounding.Controllers
         // POST: /Orders/Delete/5 — deletes the order with its items, components and payment (cascade) and its prescription
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Manager)]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var order = await LoadOrder(id);
@@ -177,6 +195,7 @@ namespace PharmacyCompounding.Controllers
         // POST: /Orders/Verify/5 — the pharmacist verifies the prescription
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Pharmacy)]
         public Task<IActionResult> Verify(int id) => Transition(id, order =>
         {
             if (order.Prescription!.IsValid(DateTime.Today))
@@ -192,6 +211,7 @@ namespace PharmacyCompounding.Controllers
         // POST: /Orders/Pay/5
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Pharmacy)]
         public Task<IActionResult> Pay(int id, string method) => Transition(id, order =>
         {
             var payment = new Payment { Amount = order.Total, Method = method, OrderId = order.Id };
@@ -205,6 +225,7 @@ namespace PharmacyCompounding.Controllers
         // POST: /Orders/Manufacture/5 — check stock, write off ingredients, create a manufacturing act
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Production)]
         public async Task<IActionResult> Manufacture(int id, int technologistId)
         {
             if (!await _db.Technologists.AnyAsync(t => t.Id == technologistId && t.AdmittedToProduction))
@@ -249,6 +270,7 @@ namespace PharmacyCompounding.Controllers
         // POST: /Orders/QualityControl/5 — the pharmacist performs quality control
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Pharmacy)]
         public async Task<IActionResult> QualityControl(int id, int pharmacistId, bool organoleptic, bool physical, bool chemical)
         {
             if (!await _db.Pharmacists.AnyAsync(p => p.Id == pharmacistId))
@@ -281,6 +303,7 @@ namespace PharmacyCompounding.Controllers
         // POST: /Orders/Issue/5
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Pharmacy)]
         public Task<IActionResult> Issue(int id) => Transition(id, order =>
         {
             order.ChangeStatus(OrderStatus.Issued);
@@ -290,6 +313,7 @@ namespace PharmacyCompounding.Controllers
         // POST: /Orders/Cancel/5
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Pharmacy)]
         public Task<IActionResult> Cancel(int id) => Transition(id, order =>
         {
             order.ChangeStatus(OrderStatus.Cancelled);
@@ -308,8 +332,16 @@ namespace PharmacyCompounding.Controllers
             if (order == null) return NotFound();
             try
             {
-                TempData["Message"] = action(order);
+                var message = action(order);
+                // One SaveChanges = one database transaction: the status, payment, act and stock write-off
+                // are saved together or not at all
                 await _db.SaveChangesAsync();
+                TempData["Message"] = message;
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Another user changed this order or the same ingredients between reading and saving
+                TempData["Error"] = ConcurrencyError;
             }
             catch (InvalidOperationException ex)
             {
@@ -323,6 +355,9 @@ namespace PharmacyCompounding.Controllers
             TempData["Error"] = error;
             return Task.FromResult<IActionResult>(RedirectToAction(nameof(Details), new { id }));
         }
+
+        private const string ConcurrencyError =
+            "Замовлення або залишки інгредієнтів щойно змінив інший користувач. Зміни не збережено — перегляньте актуальні дані й повторіть дію";
 
         private IActionResult NotEditable(Order order)
         {

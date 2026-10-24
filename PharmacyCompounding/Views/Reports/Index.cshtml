@@ -16,12 +16,13 @@
             ("Technologists", "bi-person-gear", "Робота технологів", "Акти виготовлення, брак і частка браку"),
             ("Cost", "bi-calculator", "Собівартість ліків", "Сировина, робота й частка сировини в ціні"),
         }),
-        ("Обслуговування", "bi-tools", new[]
+        // Data maintenance changes many records at once, so it is available to the manager only
+        ("Обслуговування", "bi-tools", User.CanDelete() ? new[]
         {
             ("AddDoctor", "bi-person-plus", "Додати лікаря", "Новий запис у довіднику лікарів"),
             ("Reprice", "bi-percent", "Переоцінка інгредієнтів", "Зміна цін складу на вказаний відсоток"),
             ("Cleanup", "bi-trash3", "Очищення скасованих замовлень", "Видалення давніх скасованих замовлень і їхніх рецептів"),
-        }),
+        } : Array.Empty<(string, string, string, string)>()),
     };
 }
 <div class="page-head">
@@ -31,7 +32,7 @@
     </div>
 </div>
 
-@foreach (var (title, icon, reports) in groups)
+@foreach (var (title, icon, reports) in groups.Where(g => g.Item3.Length > 0))
 {
     <h2 class="report-group"><i class="bi @icon"></i>@title</h2>
     <div class="row g-3 mb-4">

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -337,6 +338,7 @@ namespace PharmacyCompounding.Controllers
 
         // Query 9. Add a new doctor
         [HttpGet]
+        [Authorize(Roles = Roles.Manager)]
         public async Task<IActionResult> AddDoctor()
         {
             var vm = DescribeAddDoctor(new Doctor());
@@ -346,6 +348,7 @@ namespace PharmacyCompounding.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Manager)]
         public async Task<IActionResult> AddDoctor(Doctor doctor)
         {
             var vm = DescribeAddDoctor(doctor);
@@ -365,6 +368,7 @@ namespace PharmacyCompounding.Controllers
 
         // Query 10. Reprice a warehouse's ingredients by a given percentage
         [HttpGet]
+        [Authorize(Roles = Roles.Manager)]
         public async Task<IActionResult> Reprice(int? warehouseId)
         {
             var vm = await DescribeReprice(warehouseId, 10);
@@ -374,6 +378,7 @@ namespace PharmacyCompounding.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Manager)]
         public async Task<IActionResult> Reprice(int warehouseId, decimal percent)
         {
             var vm = await DescribeReprice(warehouseId, percent);
@@ -393,6 +398,7 @@ namespace PharmacyCompounding.Controllers
 
         // Query 11. Delete old cancelled orders together with their items and prescriptions
         [HttpGet]
+        [Authorize(Roles = Roles.Manager)]
         public async Task<IActionResult> Cleanup(int days = 30)
         {
             var vm = DescribeCleanup(days);
@@ -402,18 +408,24 @@ namespace PharmacyCompounding.Controllers
 
         [HttpPost, ActionName(nameof(Cleanup))]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Manager)]
         public async Task<IActionResult> CleanupConfirmed(int days)
         {
             var vm = DescribeCleanup(days);
             var border = DateTime.Today.AddDays(-days);
+            var cancelled = _db.Orders.Where(o => o.Status == OrderStatus.Cancelled && o.CreatedAt < border);
+
+            // ExecuteDelete runs its statement right away, outside SaveChanges, so the three statements are put
+            // into one explicit transaction: either the orders and their prescriptions are all deleted, or nothing is
+            await using var transaction = await _db.Database.BeginTransactionAsync();
+            var prescriptionIds = await cancelled.Select(o => o.PrescriptionId).ToListAsync();
             // The database deletes items, components and payments itself (ON DELETE CASCADE)
-            var orders = await _db.Orders
-                .Where(o => o.Status == OrderStatus.Cancelled && o.CreatedAt < border)
-                .ExecuteDeleteAsync();
-            // Prescriptions left without an order
+            var orders = await cancelled.ExecuteDeleteAsync();
+            // Only the prescriptions of the deleted orders
             var prescriptions = await _db.Prescriptions
-                .Where(p => !_db.Orders.Any(o => o.PrescriptionId == p.Id))
+                .Where(p => prescriptionIds.Contains(p.Id))
                 .ExecuteDeleteAsync();
+            await transaction.CommitAsync();
             vm.Message = $"Видалено замовлень: {orders}, рецептів: {prescriptions}";
             await CancelledOrders(vm);
             return Show(vm);

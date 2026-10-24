@@ -41,6 +41,31 @@ namespace PharmacyCompounding.Data
             mb.Entity<Order>().HasIndex(o => o.Number).IsUnique();
             mb.Entity<Order>().Property(o => o.Status).HasConversion<string>();
             mb.Entity<Ingredient>().HasIndex(i => i.Code).IsUnique();
+            mb.Entity<Prescription>().HasIndex(p => p.Number).IsUnique();
+            mb.Entity<Doctor>().HasIndex(d => d.LicenseNumber).IsUnique();
+            mb.Entity<Warehouse>().HasIndex(w => w.Name).IsUnique();
+
+            // Order numbers come from a database sequence, so two orders created at the same time
+            // never get the same number (Max + 1 in the application could give both the same one)
+            mb.HasSequence<int>("order_numbers").StartsAt(1001);
+            mb.Entity<Order>().Property(o => o.Number).HasDefaultValueSql("nextval('order_numbers')");
+
+            // Optimistic concurrency: PostgreSQL changes the xmin system column on every UPDATE,
+            // so EF Core adds "WHERE xmin = @original" and throws DbUpdateConcurrencyException on a conflict
+            mb.Entity<Ingredient>().Property(i => i.Version).HasColumnName("xmin").HasColumnType("xid").IsRowVersion();
+            mb.Entity<Order>().Property(o => o.Version).HasColumnName("xmin").HasColumnType("xid").IsRowVersion();
+
+            // Consistency rules enforced by the database itself, whichever program writes the data
+            mb.Entity<Ingredient>().ToTable(t =>
+            {
+                t.HasCheckConstraint("ck_ingredients_stock", "stock >= 0 AND min_stock >= 0");
+                t.HasCheckConstraint("ck_ingredients_price", "price_per_unit >= 0");
+            });
+            mb.Entity<Order>().ToTable(t => t.HasCheckConstraint("ck_orders_total", "total >= 0"));
+            mb.Entity<OrderItem>().ToTable(t => t.HasCheckConstraint("ck_order_items_quantity", "quantity > 0 AND work_cost >= 0"));
+            mb.Entity<Component>().ToTable(t => t.HasCheckConstraint("ck_components_amount", "amount > 0"));
+            mb.Entity<Payment>().ToTable(t => t.HasCheckConstraint("ck_payments_amount", "amount >= 0"));
+            mb.Entity<Prescription>().ToTable(t => t.HasCheckConstraint("ck_prescriptions_validity", "validity_days BETWEEN 1 AND 365"));
 
             // Order 1 — 1 Prescription
             mb.Entity<Order>()

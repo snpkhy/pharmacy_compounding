@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PharmacyCompounding.Data;
@@ -17,10 +18,12 @@ namespace PharmacyCompounding.Controllers
             View(await _db.Warehouses.Include(w => w.Ingredients).OrderBy(w => w.Name).ToListAsync());
 
         [HttpGet]
+        [Authorize(Roles = Roles.Manager)]
         public IActionResult Create() => View(new Warehouse());
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Manager)]
         public async Task<IActionResult> Create(Warehouse warehouse)
         {
             await ValidateName(warehouse);
@@ -32,6 +35,7 @@ namespace PharmacyCompounding.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = Roles.Manager)]
         public async Task<IActionResult> Edit(int id)
         {
             var warehouse = await _db.Warehouses.FindAsync(id);
@@ -40,6 +44,7 @@ namespace PharmacyCompounding.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Manager)]
         public async Task<IActionResult> Edit(int id, Warehouse warehouse)
         {
             if (id != warehouse.Id) return BadRequest();
@@ -52,6 +57,7 @@ namespace PharmacyCompounding.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = Roles.Manager)]
         public async Task<IActionResult> Delete(int id)
         {
             var warehouse = await _db.Warehouses.Include(w => w.Ingredients).FirstOrDefaultAsync(w => w.Id == id);
@@ -60,6 +66,7 @@ namespace PharmacyCompounding.Controllers
 
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Manager)]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var warehouse = await _db.Warehouses.FindAsync(id);

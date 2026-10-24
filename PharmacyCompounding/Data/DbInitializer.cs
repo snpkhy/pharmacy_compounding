@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using PharmacyCompounding.Models;
 
 namespace PharmacyCompounding.Data
@@ -188,6 +189,8 @@ namespace PharmacyCompounding.Data
                 u.SetPassword(u.Password!);
 
             db.SaveChanges();
+            // The test orders have explicit numbers, so new orders continue after them
+            db.Database.ExecuteSqlRaw("SELECT setval('order_numbers', (SELECT MAX(number) FROM orders))");
         }
 
         // Employees don't sign up themselves, the manager adds them, so the system always needs at least one manager

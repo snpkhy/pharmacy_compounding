@@ -2,7 +2,10 @@
 @{ ViewData["Title"] = "Клієнти"; }
 <div class="page-head">
     <div><h1>Клієнти</h1><div class="sub">Зареєстровані клієнти аптеки</div></div>
-    <a class="btn btn-brand" asp-action="Create"><i class="bi bi-person-plus me-1"></i>Зареєструвати клієнта</a>
+    @if (User.CanEdit())
+    {
+        <a class="btn btn-brand" asp-action="Create"><i class="bi bi-person-plus me-1"></i>Зареєструвати клієнта</a>
+    }
 </div>
 <div class="panel">
 <table class="table table-hover align-middle">
@@ -21,10 +24,16 @@
             <td class="text-muted">@c.Address</td>
             <td class="text-end"><a class="fw-semibold" asp-controller="Orders" asp-action="Index" asp-route-search="@c.FullName">@c.Orders.Count</a></td>
             <td class="text-end text-nowrap">
-                <a class="btn btn-soft btn-icon" title="Змінити" asp-action="Edit" asp-route-id="@c.Id"><i class="bi bi-pencil"></i></a>
-                <form asp-action="Delete" asp-route-id="@c.Id" method="post" class="d-inline" onsubmit="return confirm('Видалити клієнта?')">
-                    <button class="btn btn-ghost-danger btn-icon" title="Видалити"><i class="bi bi-trash3"></i></button>
-                </form>
+                @if (User.CanEdit())
+                {
+                    <a class="btn btn-soft btn-icon" title="Змінити" asp-action="Edit" asp-route-id="@c.Id"><i class="bi bi-pencil"></i></a>
+                }
+                @if (User.CanDelete())
+                {
+                    <form asp-action="Delete" asp-route-id="@c.Id" method="post" class="d-inline" onsubmit="return confirm('Видалити клієнта?')">
+                        <button class="btn btn-ghost-danger btn-icon" title="Видалити"><i class="bi bi-trash3"></i></button>
+                    </form>
+                }
             </td>
         </tr>
     }
