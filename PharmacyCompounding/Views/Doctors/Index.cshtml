@@ -1,5 +1,8 @@
 @model IEnumerable<Doctor>
-@{ ViewData["Title"] = "Лікарі"; }
+@{
+    ViewData["Title"] = "Лікарі";
+    var counts = (Dictionary<int, int>)ViewBag.Counts;
+}
 <div class="page-head">
     <div><h1>Лікарі</h1><div class="sub">Лікарі, які виписують рецепти</div></div>
     @if (User.CanEdit())
@@ -22,7 +25,7 @@
             </td>
             <td class="text-muted small">@d.Institution</td>
             <td class="num">@d.LicenseNumber</td>
-            <td class="text-end fw-semibold">@d.Prescriptions.Count</td>
+            <td class="text-end fw-semibold num">@counts.GetValueOrDefault(d.Id).ToString("N0")</td>
             <td class="text-end text-nowrap">
                 @if (User.CanEdit())
                 {

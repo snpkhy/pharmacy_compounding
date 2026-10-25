@@ -50,9 +50,13 @@ namespace PharmacyCompounding.Data
         internal static void Add(HttpContext? context, string sql)
         {
             if (context == null) return;
-            if (context.Items[Key] is not List<string> list)
-                context.Items[Key] = list = new List<string>();
-            list.Add(sql);
+            // Several contexts of one request may run queries in parallel (the parallel processing page)
+            lock (context.Items)
+            {
+                if (context.Items[Key] is not List<string> list)
+                    context.Items[Key] = list = new List<string>();
+                list.Add(sql);
+            }
         }
 
         private static string Format(object? value) => value switch
