@@ -20,7 +20,7 @@ namespace PharmacyCompounding.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Doctor doctor)
+        public async Task<IActionResult> Create([Bind("FullName,Specialization,Institution,LicenseNumber")] Doctor doctor)
         {
             if (!ModelState.IsValid) return View(doctor);
             _db.Doctors.Add(doctor);
@@ -38,7 +38,7 @@ namespace PharmacyCompounding.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, Doctor doctor)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,FullName,Specialization,Institution,LicenseNumber")] Doctor doctor)
         {
             if (id != doctor.Id) return BadRequest();
             if (!ModelState.IsValid) return View(doctor);
@@ -52,10 +52,10 @@ namespace PharmacyCompounding.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(int id)
         {
-            var doctor = await _db.Doctors.Include(d => d.Prescriptions).FirstOrDefaultAsync(d => d.Id == id);
+            var doctor = await _db.Doctors.FindAsync(id);
             if (doctor == null) return NotFound();
             // Prescriptions refer to the doctor with ON DELETE RESTRICT
-            if (doctor.Prescriptions.Any())
+            if (await _db.Prescriptions.AnyAsync(p => p.DoctorId == id))
                 TempData["Error"] = $"Неможливо видалити лікаря «{doctor.FullName}»: у базі є виписані ним рецепти";
             else
             {

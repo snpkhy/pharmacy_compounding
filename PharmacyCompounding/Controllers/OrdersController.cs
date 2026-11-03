@@ -12,6 +12,9 @@ namespace PharmacyCompounding.Controllers
     {
         private readonly PharmacyContext _db;
 
+        private const string CannotDeleteMessage =
+            "Видалити можна лише замовлення, яке ще не оплачене й не виготовлялося (створене, на перевірці, відхилене або скасоване). Інші замовлення можна лише скасувати";
+
         public OrdersController(PharmacyContext db) => _db = db;
 
         // GET: /Orders?status=Ready&search=1002
@@ -56,6 +59,7 @@ namespace PharmacyCompounding.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(OrderCreateViewModel vm)
         {
+            vm.PrescriptionNumber = vm.PrescriptionNumber?.Trim() ?? string.Empty;
             var components = vm.Components.Where(c => c.IngredientId.HasValue && c.Amount > 0).ToList();
             if (components.Count == 0)
                 ModelState.AddModelError("", "Додайте хоча б один компонент");
@@ -131,6 +135,7 @@ namespace PharmacyCompounding.Controllers
             if (!order.IsEditable) return NotEditable(order);
             vm.Id = id;
             vm.Number = order.Number;
+            vm.PrescriptionNumber = vm.PrescriptionNumber?.Trim() ?? string.Empty;
 
             if (!vm.Components.Any(c => c.IngredientId.HasValue && c.Amount > 0))
                 ModelState.AddModelError("", "Додайте хоча б один компонент");
@@ -154,7 +159,7 @@ namespace PharmacyCompounding.Controllers
         {
             var order = await LoadOrder(id);
             if (order == null) return NotFound();
-            if (!order.CanBeDeleted) return await Fail(id, "Замовлення, яке вже оплачене або виготовлялося, видалити не можна — його можна лише скасувати");
+            if (!order.CanBeDeleted) return await Fail(id, CannotDeleteMessage);
             return View(order);
         }
 
@@ -165,7 +170,7 @@ namespace PharmacyCompounding.Controllers
         {
             var order = await LoadOrder(id);
             if (order == null) return NotFound();
-            if (!order.CanBeDeleted) return await Fail(id, "Замовлення, яке вже оплачене або виготовлялося, видалити не можна — його можна лише скасувати");
+            if (!order.CanBeDeleted) return await Fail(id, CannotDeleteMessage);
 
             _db.Orders.Remove(order);
             _db.Prescriptions.Remove(order.Prescription!);
