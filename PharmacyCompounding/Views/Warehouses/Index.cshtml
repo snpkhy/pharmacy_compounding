@@ -1,0 +1,31 @@
+@model IEnumerable<Warehouse>
+@{ ViewData["Title"] = "Склади"; }
+<div class="page-head">
+    <div><h1>Склади</h1><div class="sub">Місця зберігання інгредієнтів</div></div>
+    <a class="btn btn-brand" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Додати склад</a>
+</div>
+<div class="panel">
+<table class="table table-hover align-middle">
+    <thead><tr><th>Склад</th><th class="text-end">Інгредієнтів</th><th class="text-end">Нижче мінімуму</th><th class="text-end">Вартість запасів</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var w in Model)
+    {
+        var low = w.Ingredients.Count(i => i.IsLow);
+        <tr>
+            <td><div class="cell-title">@w.Name</div><div class="cell-sub">@w.Address</div></td>
+            <td class="text-end"><a class="fw-semibold" asp-controller="Ingredients" asp-action="Index" asp-route-warehouseId="@w.Id">@w.Ingredients.Count</a></td>
+            <td class="text-end">@if (low > 0) { <span class="pill st-wait">@low</span> } else { <span class="text-muted">—</span> }</td>
+            <td class="text-end num">@w.Ingredients.Sum(i => (decimal)i.Stock * i.PricePerUnit).ToString("N2") ₴</td>
+            <td class="text-end text-nowrap">
+                <a class="btn btn-soft btn-icon" title="Змінити" asp-action="Edit" asp-route-id="@w.Id"><i class="bi bi-pencil"></i></a>
+                <a class="btn btn-ghost-danger btn-icon" title="Видалити" asp-action="Delete" asp-route-id="@w.Id"><i class="bi bi-trash3"></i></a>
+            </td>
+        </tr>
+    }
+    @if (!Model.Any())
+    {
+        <tr><td colspan="5" class="empty">Складів ще немає</td></tr>
+    }
+    </tbody>
+</table>
+</div>

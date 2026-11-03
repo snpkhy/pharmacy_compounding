@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using PharmacyCompounding.Models;
 
 namespace PharmacyCompounding.ViewModels
 {
@@ -55,6 +56,68 @@ namespace PharmacyCompounding.ViewModels
 
         public List<ComponentInput> Components { get; set; } =
             Enumerable.Range(0, 3).Select(_ => new ComponentInput()).ToList();
+    }
+
+    // Order edit form: the same fields as the new order form plus the order identity
+    public class OrderEditViewModel : OrderCreateViewModel
+    {
+        public int Id { get; set; }
+
+        public int Number { get; set; }
+
+        public static OrderEditViewModel From(Order order)
+        {
+            var item = order.Items.First();
+            var prescription = order.Prescription!;
+            var components = item.Components
+                .Select(c => new ComponentInput { IngredientId = c.IngredientId, Amount = c.Amount })
+                .ToList();
+            // Spare empty rows to add new components
+            components.AddRange(Enumerable.Range(0, 2).Select(_ => new ComponentInput()));
+
+            return new OrderEditViewModel
+            {
+                Id = order.Id, Number = order.Number, ClientId = order.ClientId, PlannedReadyDate = order.PlannedReadyDate,
+                DoctorId = prescription.DoctorId, PrescriptionNumber = prescription.Number, IssueDate = prescription.IssueDate,
+                ValidityDays = prescription.ValidityDays, Patient = prescription.Patient, Formula = prescription.Formula,
+                MedicineName = item.MedicineName, DosageForm = item.DosageForm, Dosage = item.Dosage,
+                Quantity = item.Quantity, WorkCost = item.WorkCost, Components = components
+            };
+        }
+
+        public void ApplyTo(Order order, IReadOnlyDictionary<int, Ingredient> ingredients)
+        {
+            order.ClientId = ClientId;
+            order.PlannedReadyDate = PlannedReadyDate;
+
+            var prescription = order.Prescription!;
+            prescription.DoctorId = DoctorId;
+            prescription.Number = PrescriptionNumber.Trim();
+            prescription.IssueDate = IssueDate;
+            prescription.ValidityDays = ValidityDays;
+            prescription.Patient = Patient;
+            prescription.Formula = Formula;
+
+            var item = order.Items.First();
+            item.MedicineName = MedicineName;
+            item.DosageForm = DosageForm;
+            item.Dosage = Dosage;
+            item.Quantity = Quantity;
+            item.WorkCost = WorkCost;
+            // The composition is replaced: removed components are deleted by EF Core (orphans of a composition)
+            item.Components.Clear();
+            item.Components.AddRange(Components
+                .Where(c => c.IngredientId.HasValue && c.Amount > 0)
+                .Select(c => new Component
+                {
+                    IngredientId = c.IngredientId!.Value,
+                    Ingredient = ingredients[c.IngredientId.Value],
+                    Amount = c.Amount,
+                    Unit = ingredients[c.IngredientId.Value].Unit
+                }));
+
+            order.CalculateTotal();
+        }
     }
 
     public class ComponentInput

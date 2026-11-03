@@ -1,0 +1,16 @@
+@model Order
+@{ ViewData["Title"] = $"Видалення замовлення №{Model.Number}"; }
+<div class="page-head"><div><a asp-action="Details" asp-route-id="@Model.Id" class="small fw-semibold"><i class="bi bi-arrow-left"></i> Замовлення #@Model.Number</a><h1 class="mt-1">Видалити замовлення #@Model.Number?</h1></div></div>
+<div class="panel"><div class="panel-body">
+    <p class="text-muted">Разом із замовленням буде видалено його позиції, компоненти, запис про оплату та рецепт. Цю дію не можна скасувати.</p>
+    <dl class="kv mb-3">
+        <dt>Статус</dt><dd><partial name="_StatusBadge" model="Model.Status" /></dd>
+        <dt>Клієнт</dt><dd>@Model.Client?.FullName</dd>
+        <dt>Рецепт</dt><dd>@Model.Prescription?.Number, @Model.Prescription?.Doctor?.FullName</dd>
+        <dt>Ліки</dt><dd>@string.Join(", ", Model.Items.Select(i => i.MedicineName))</dd>
+        <dt>Сума</dt><dd class="num">@Model.Total.ToString("N2") ₴</dd>
+    </dl>
+    <form asp-action="Delete" asp-route-id="@Model.Id" method="post">
+        <button class="btn btn-ghost-danger"><i class="bi bi-trash3 me-1"></i>Видалити</button> <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-soft">Скасувати</a>
+    </form>
+</div></div>

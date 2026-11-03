@@ -49,7 +49,13 @@
                 <td class="num">@o.PlannedReadyDate.ToString("dd.MM.yyyy")</td>
                 <td><partial name="_StatusBadge" model="o.Status" /></td>
                 <td class="text-end fw-semibold num">@o.Total.ToString("N2") ₴</td>
-                <td class="text-end"><a class="btn btn-sm btn-soft text-nowrap" asp-action="Details" asp-route-id="@o.Id">Відкрити</a></td>
+                <td class="text-end text-nowrap">
+                    @if (o.IsEditable)
+                    {
+                        <a class="btn btn-soft btn-icon" title="Змінити" asp-action="Edit" asp-route-id="@o.Id"><i class="bi bi-pencil"></i></a>
+                    }
+                    <a class="btn btn-sm btn-soft" asp-action="Details" asp-route-id="@o.Id">Відкрити</a>
+                </td>
             </tr>
         }
         @if (!Model.Any())

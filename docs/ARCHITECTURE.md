@@ -45,7 +45,7 @@ repository layer, because the domain logic is small and lives in the model class
 | `Models/`      | Domain classes from the class diagram, including behavior such as order status transitions  |
 | `Data/`        | `PharmacyContext` (mapping and relationships), `DbInitializer` (seed data), SQL interceptor |
 | `Migrations/`  | Generated EF Core migrations                                                                 |
-| `Controllers/` | One controller per area: orders, prescriptions, ingredients, clients, doctors, employees, reports, account, client cabinet |
+| `Controllers/` | One controller per area: orders, prescriptions, ingredients, warehouses, clients, doctors, employees, reports, account, client cabinet |
 | `ViewModels/`  | Form and page models that don't map one-to-one to entities                                   |
 | `Views/`       | Razor views; `Shared/_Layout.cshtml` holds the sidebar layout                                |
 
@@ -126,6 +126,11 @@ stateDiagram-v2
     Issued --> [*]
     Cancelled --> [*]
 ```
+
+An order and its prescription can be edited only while the prescription is not yet verified (`Order.IsEditable`:
+`Created`, `UnderReview`). An order can be deleted, together with its prescription, only if it was never manufactured and
+holds no successful payment (`Order.CanBeDeleted`); otherwise it can only be cancelled. The new order and edit order pages
+share the `_OrderForm` partial, and `OrderEditViewModel` extends `OrderCreateViewModel`.
 
 Starting manufacturing checks stock, writes off the ingredients and creates a manufacturing act. If an ingredient is
 short, the order moves to `AwaitingIngredients` instead.
