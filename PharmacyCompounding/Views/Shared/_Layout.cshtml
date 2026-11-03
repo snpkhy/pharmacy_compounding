@@ -1,6 +1,7 @@
 @{
     var controller = ViewContext.RouteData.Values["controller"]?.ToString();
-    string Active(string c) => controller == c ? "active" : "";
+    var action = ViewContext.RouteData.Values["action"]?.ToString();
+    string Active(string c, string? a = null) => controller == c && (a == null || action == a) ? "active" : "";
     var isClient = User.IsInRole(Roles.Client);
     var isManager = User.IsInRole(Roles.Manager);
     var roleName = isManager ? "Завідувач аптеки"
@@ -35,7 +36,9 @@
             @if (isClient)
             {
                 <div class="nav-section">Кабінет</div>
-                <a class="@Active("Cabinet")" asp-controller="Cabinet" asp-action="Index"><i class="bi bi-receipt"></i>Мої замовлення</a>
+                <a class="@(action == "Profile" ? "" : Active("Cabinet"))" asp-controller="Cabinet" asp-action="Index"><i class="bi bi-receipt"></i>Мої замовлення</a>
+                <a class="@Active("Cabinet", "Profile")" asp-controller="Cabinet" asp-action="Profile"><i class="bi bi-person"></i>Профіль</a>
+                <a class="@Active("Contacts")" asp-controller="Contacts" asp-action="Index"><i class="bi bi-telephone"></i>Контакти</a>
             }
             else
             {
@@ -50,14 +53,14 @@
                 <a class="@Active("Doctors")" asp-controller="Doctors" asp-action="Index"><i class="bi bi-heart-pulse"></i>Лікарі</a>
                 <a class="@Active("Warehouses")" asp-controller="Warehouses" asp-action="Index"><i class="bi bi-buildings"></i>Склади</a>
                 <a class="@Active("Employees")" asp-controller="Employees" asp-action="Index"><i class="bi bi-person-badge"></i>Працівники</a>
-                <a class="@Active("Contacts")" asp-controller="Contacts" asp-action="Index"><i class="bi bi-person-badge"></i>Контакти</a>
+                <a class="@Active("Contacts")" asp-controller="Contacts" asp-action="Index"><i class="bi bi-telephone"></i>Контакти</a>
             }
         </nav>
-        @if (!isClient)
+        @if (User.CanEdit())
         {
             <a class="sidebar-cta" asp-controller="Orders" asp-action="Create"><i class="bi bi-plus-lg"></i>Нове замовлення</a>
         }
-        <div class="sidebar-user @(isClient ? "mt-auto" : "")">
+        <div class="sidebar-user @(User.CanEdit() ? "" : "mt-auto")">
             <partial name="_Initials" model="User.Identity?.Name" />
             <div>
                 <div class="sidebar-user-name">@User.Identity?.Name</div>

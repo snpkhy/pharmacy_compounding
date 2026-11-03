@@ -1,5 +1,45 @@
-@{
-    ViewData["Title"] = "Контакти";
-}
-
-<div>Контакти</div>
+@model IEnumerable<Employee>
+@{ ViewData["Title"] = "Контакти"; }
+<div class="page-head">
+    <div><h1>Контакти</h1><div class="sub">Рецептурна аптека: як нас знайти і до кого звернутися</div></div>
+</div>
+<div class="row g-3">
+    <div class="col-lg-5">
+        <div class="panel h-100">
+            <div class="panel-head"><h2 class="panel-title"><i class="bi bi-geo-alt"></i>Аптека</h2></div>
+            <div class="panel-body">
+                <dl class="kv">
+                    <dt>Адреса</dt><dd>м. Київ, вул. Володимирська, 60</dd>
+                    <dt>Телефон</dt><dd class="num">+380 44 123 45 67</dd>
+                    <dt>Email</dt><dd>info@pharmacy.ua</dd>
+                    <dt>Пн–Пт</dt><dd>08:00–20:00</dd>
+                    <dt>Сб</dt><dd>09:00–17:00</dd>
+                    <dt>Нд</dt><dd>вихідний</dd>
+                </dl>
+                <p class="text-muted small mt-3 mb-0">Ліки за індивідуальним прописом виготовляються протягом 1–3 робочих днів після оплати. Про готовність замовлення ми повідомимо за телефоном, указаним у профілі.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="panel h-100">
+            <div class="panel-head"><h2 class="panel-title"><i class="bi bi-people"></i>Працівники</h2></div>
+            <table class="table align-middle">
+                <thead><tr><th>Працівник</th><th>Контакти</th></tr></thead>
+                <tbody>
+                @foreach (var e in Model)
+                {
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <partial name="_Initials" model="e.FullName" />
+                                <div><div class="cell-title">@e.FullName</div><div class="cell-sub">@e.Position</div></div>
+                            </div>
+                        </td>
+                        <td><div class="num">@e.Phone</div><div class="cell-sub">@e.Email</div></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

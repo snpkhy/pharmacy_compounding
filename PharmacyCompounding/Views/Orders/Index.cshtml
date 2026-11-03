@@ -9,7 +9,10 @@
         <h1>Замовлення</h1>
         <div class="sub">Замовлення на виготовлення ліків за рецептами лікарів</div>
     </div>
-    <a class="btn btn-brand" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Нове замовлення</a>
+    @if (User.CanEdit())
+    {
+        <a class="btn btn-brand" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Нове замовлення</a>
+    }
 </div>
 
 <div class="panel">
@@ -50,7 +53,7 @@
                 <td><partial name="_StatusBadge" model="o.Status" /></td>
                 <td class="text-end fw-semibold num">@o.Total.ToString("N2") ₴</td>
                 <td class="text-end text-nowrap">
-                    @if (o.IsEditable)
+                    @if (o.IsEditable && User.CanEdit())
                     {
                         <a class="btn btn-soft btn-icon" title="Змінити" asp-action="Edit" asp-route-id="@o.Id"><i class="bi bi-pencil"></i></a>
                     }

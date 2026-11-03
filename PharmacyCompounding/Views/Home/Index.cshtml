@@ -21,7 +21,10 @@
         <h1>Облік виготовлення ліків на замовлення</h1>
         <div class="sub">Стан замовлень, оплати та залишки на складі</div>
     </div>
-    <a class="btn btn-brand" asp-controller="Orders" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Нове замовлення</a>
+    @if (User.CanEdit())
+    {
+        <a class="btn btn-brand" asp-controller="Orders" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Нове замовлення</a>
+    }
 </div>
 
 <div class="row g-3 mb-4">

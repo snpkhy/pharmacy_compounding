@@ -2,7 +2,10 @@
 @{ ViewData["Title"] = "Склади"; }
 <div class="page-head">
     <div><h1>Склади</h1><div class="sub">Місця зберігання інгредієнтів</div></div>
-    <a class="btn btn-brand" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Додати склад</a>
+    @if (User.CanDelete())
+    {
+        <a class="btn btn-brand" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Додати склад</a>
+    }
 </div>
 <div class="panel">
 <table class="table table-hover align-middle">
@@ -17,8 +20,11 @@
             <td class="text-end">@if (low > 0) { <span class="pill st-wait">@low</span> } else { <span class="text-muted">—</span> }</td>
             <td class="text-end num">@w.Ingredients.Sum(i => (decimal)i.Stock * i.PricePerUnit).ToString("N2") ₴</td>
             <td class="text-end text-nowrap">
-                <a class="btn btn-soft btn-icon" title="Змінити" asp-action="Edit" asp-route-id="@w.Id"><i class="bi bi-pencil"></i></a>
-                <a class="btn btn-ghost-danger btn-icon" title="Видалити" asp-action="Delete" asp-route-id="@w.Id"><i class="bi bi-trash3"></i></a>
+                @if (User.CanDelete())
+                {
+                    <a class="btn btn-soft btn-icon" title="Змінити" asp-action="Edit" asp-route-id="@w.Id"><i class="bi bi-pencil"></i></a>
+                    <a class="btn btn-ghost-danger btn-icon" title="Видалити" asp-action="Delete" asp-route-id="@w.Id"><i class="bi bi-trash3"></i></a>
+                }
             </td>
         </tr>
     }

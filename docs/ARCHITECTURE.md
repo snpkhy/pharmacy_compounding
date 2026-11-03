@@ -141,6 +141,20 @@ short, the order moves to `AwaitingIngredients` instead.
 - **Authorization:** a fallback policy requires a staff role (Pharmacist, Technologist or Manager) on every endpoint.
   Exceptions are explicit: `[AllowAnonymous]` for sign-in and sign-up, `[Authorize(Roles = Roles.Client)]` for the
   client cabinet, `[Authorize(Roles = Roles.Manager)]` for staff management.
+- **Roles inside the staff** (`Roles.Pharmacy`, `Roles.Production` for attributes; `User.CanEdit()`,
+  `CanManufacture()`, `CanDelete()` in views):
+
+  | Action | Pharmacist | Technologist | Manager |
+  |---|---|---|---|
+  | View orders, prescriptions, stock, reports, directories | ✓ | ✓ | ✓ |
+  | Create/edit orders, verify, take payment, quality control, issue, cancel | ✓ | | ✓ |
+  | Manufacture | | ✓ | ✓ |
+  | Create/edit clients, doctors, ingredients; replenish stock | ✓ | replenish only | ✓ |
+  | Delete records, warehouses, staff, bulk maintenance reports | | | ✓ |
+
+  Buttons a role can't use are hidden, and the controller actions check the same roles.
+- **Clients** see their own orders, edit their profile (`/Cabinet/Profile`, the password changes only with the current
+  one) and the contacts page.
 - **Sign-up:** only clients can register themselves; employees are created by the manager.
 - **Secrets:** database credentials live in `.env`, which is git-ignored. `appsettings.json` only has the host and port.
 
@@ -154,6 +168,22 @@ short, the order moves to `AwaitingIngredients` instead.
 
 Docker Compose reads the same `.env` file to initialize PostgreSQL and to generate the pgAdmin server definition and
 password file (`configs` in `docker-compose.yml`), so the credentials are defined in one place.
+
+## Data integrity (ACID)
+
+- **Atomicity:** each user action ends with one `SaveChanges`, which EF Core runs in a single transaction (status,
+  payment, manufacturing act and stock write-off together). Bulk `ExecuteDelete`/`ExecuteUpdate` statements bypass
+  `SaveChanges`, so the cleanup report wraps them in an explicit transaction.
+- **Consistency:** besides foreign keys, the database has check constraints (non-negative stock, prices, totals and
+  amounts; validity of 1–365 days) and unique indexes on `prescriptions.number`, `doctors.license_number` and
+  `warehouses.name`. The app validates the same rules first to show a friendly message.
+- **Isolation:** `orders` and `ingredients` use optimistic concurrency on PostgreSQL's `xmin` system column
+  (`Version` properties). A conflicting save throws `DbUpdateConcurrencyException`, and the user gets a message instead
+  of silently overwriting someone else's change. Order numbers come from the `order_numbers` sequence instead of
+  `MAX + 1`.
+- **Durability:** PostgreSQL commits to its write-ahead log; data lives in the `pgdata` Docker volume.
+
+`TransactionCaptureInterceptor` adds `BEGIN` / `COMMIT` / `ROLLBACK` to the SQL panel of the report pages.
 
 ## Reports
 
