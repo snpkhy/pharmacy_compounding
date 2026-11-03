@@ -24,7 +24,7 @@ namespace PharmacyCompounding.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = Roles.Manager)]
-        public async Task<IActionResult> Create(Warehouse warehouse)
+        public async Task<IActionResult> Create([Bind("Name,Address")] Warehouse warehouse)
         {
             await ValidateName(warehouse);
             if (!ModelState.IsValid) return View(warehouse);
@@ -45,14 +45,17 @@ namespace PharmacyCompounding.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = Roles.Manager)]
-        public async Task<IActionResult> Edit(int id, Warehouse warehouse)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,Name,Address")] Warehouse warehouse)
         {
             if (id != warehouse.Id) return BadRequest();
             await ValidateName(warehouse);
             if (!ModelState.IsValid) return View(warehouse);
-            _db.Update(warehouse);
+            var existing = await _db.Warehouses.FindAsync(id);
+            if (existing == null) return NotFound();
+            existing.Name = warehouse.Name;
+            existing.Address = warehouse.Address;
             await _db.SaveChangesAsync();
-            TempData["Message"] = $"Зміни для складу «{warehouse.Name}» збережено";
+            TempData["Message"] = $"Зміни для складу «{existing.Name}» збережено";
             return RedirectToAction(nameof(Index));
         }
 
@@ -83,10 +86,13 @@ namespace PharmacyCompounding.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // The name is stored trimmed, so both sides of the comparison are normalized the same way
         private async Task ValidateName(Warehouse warehouse)
         {
-            if (!string.IsNullOrWhiteSpace(warehouse.Name) &&
-                await _db.Warehouses.AnyAsync(w => w.Id != warehouse.Id && w.Name.ToLower() == warehouse.Name.Trim().ToLower()))
+            warehouse.Name = warehouse.Name?.Trim() ?? string.Empty;
+            var name = warehouse.Name.ToLower();
+            if (name.Length > 0 &&
+                await _db.Warehouses.AnyAsync(w => w.Id != warehouse.Id && w.Name.Trim().ToLower() == name))
                 ModelState.AddModelError(nameof(Warehouse.Name), "Склад з такою назвою вже існує");
         }
     }

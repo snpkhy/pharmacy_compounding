@@ -29,7 +29,7 @@ namespace PharmacyCompounding.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = Roles.Pharmacy)]
-        public async Task<IActionResult> Create(Doctor doctor)
+        public async Task<IActionResult> Create([Bind("FullName,Specialization,Institution,LicenseNumber")] Doctor doctor)
         {
             await ValidateLicense(doctor);
             if (!ModelState.IsValid) return View(doctor);
@@ -50,7 +50,7 @@ namespace PharmacyCompounding.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = Roles.Pharmacy)]
-        public async Task<IActionResult> Edit(int id, Doctor doctor)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,FullName,Specialization,Institution,LicenseNumber")] Doctor doctor)
         {
             if (id != doctor.Id) return BadRequest();
             await ValidateLicense(doctor);
