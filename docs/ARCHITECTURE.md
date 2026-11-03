@@ -45,7 +45,8 @@ repository layer, because the domain logic is small and lives in the model class
 | `Models/`      | Domain classes from the class diagram, including behavior such as order status transitions  |
 | `Data/`        | `PharmacyContext` (mapping and relationships), `DbInitializer` (seed data), SQL interceptor |
 | `Migrations/`  | Generated EF Core migrations                                                                 |
-| `Controllers/` | One controller per area: orders, prescriptions, ingredients, warehouses, clients, doctors, employees, reports, account, client cabinet |
+| `Controllers/` | One controller per area: orders, prescriptions, ingredients, warehouses, clients, doctors, employees, reports, parallel processing, account, client cabinet |
+| `Parallelism/` | Prescription analysis strategies (sequential, PLINQ, threads, TPL), the benchmark and the test data generator |
 | `ViewModels/`  | Form and page models that don't map one-to-one to entities                                   |
 | `Views/`       | Razor views; `Shared/_Layout.cshtml` holds the sidebar layout                                |
 
@@ -195,6 +196,22 @@ To show the SQL that each LINQ query produced, `SqlCaptureInterceptor` (a single
 command and its parameter values to `HttpContext.Items` for the current request. The view renders them in a collapsed
 panel under the result. `ReportViewModel` describes the form parameters, result table and totals, so all reports share a
 single view.
+
+## Parallel processing
+
+`/Parallel` (`ParallelController`) compares the same query run sequentially and in parallel:
+
+1. **Selection:** prescriptions are read with one query, or with four contexts (four connections) that read id ranges
+   at the same time.
+2. **Processing:** `PrescriptionAnalyzer` subclasses (Strategy pattern) parse the formulas, check validity and build
+   per-doctor statistics with plain LINQ, PLINQ (`WithDegreeOfParallelism`), `Thread`, `Parallel.ForEach` and
+   `Task.Run`. Each thread fills its own `PrescriptionStats`, and the results are merged at the end, so no locks are
+   needed while processing. `ParallelBenchmark` warms all of them up, takes the median of repeated runs and checks
+   that every technology produced the same result.
+
+The manager can add 100 000 generated prescriptions (`GEN-…` numbers, no order) with PostgreSQL binary `COPY`, and
+remove them again. The prescriptions page is paginated and the doctors page counts prescriptions in SQL, so they stay
+fast with that much data.
 
 ## Key decisions
 

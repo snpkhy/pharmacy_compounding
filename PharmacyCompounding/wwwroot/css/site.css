@@ -187,3 +187,6 @@ a:hover { color: var(--brand-dark); }
 .sql-details summary .panel-title::after { content: "\F282"; font-family: bootstrap-icons; font-size: .8rem; margin-left: 6px; color: var(--muted); display: inline-block; }
 .sql-details[open] summary .panel-title::after { transform: rotate(180deg); }
 .sql-details:not([open]) summary { border-bottom: 0; }
+
+/* ---------- parallel processing ---------- */
+.row-best td { background: #f0faf6 !important; }

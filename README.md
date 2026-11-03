@@ -71,6 +71,12 @@ half-year, monthly totals, ingredient usage, technologist performance, medicine 
 that insert, update (`ExecuteUpdate`) and delete (`ExecuteDelete`) data. Each page has a collapsible
 **SQL-запити** panel with the SQL that EF Core sent to PostgreSQL.
 
+## Parallel processing
+
+The **Паралелізм** page (`/Parallel`) runs a prescription analysis sequentially and in parallel (PLINQ, threads, TPL)
+and compares the timings. Sign in as the manager and press "Згенерувати 100 000 рецептів" to fill the table with test
+data first. "Видалити згенеровані" removes it again. Run the app with `dotnet run -c Release` for meaningful timings.
+
 ## Migrations
 
 After changing the model, add a migration from the repository root:
