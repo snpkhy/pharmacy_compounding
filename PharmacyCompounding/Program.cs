@@ -23,7 +23,7 @@ builder.Services.Configure<Microsoft.Extensions.WebEncoders.WebEncoderOptions>(o
 
 // Register the data context (PostgreSQL): host and port come from appsettings.json, credentials from .env.
 // Table and column names are snake_case: Orders.CreatedAt → orders.created_at
-// The interceptor records the executed SQL to show it on the report pages.
+// The interceptors record the executed SQL and transaction boundaries to show them on the report pages.
 var connection = new NpgsqlConnectionStringBuilder(builder.Configuration.GetConnectionString("PharmacyDb"))
 {
     Database = Required("POSTGRES_DB"),
@@ -33,10 +33,12 @@ var connection = new NpgsqlConnectionStringBuilder(builder.Configuration.GetConn
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<SqlCaptureInterceptor>();
+builder.Services.AddSingleton<TransactionCaptureInterceptor>();
 builder.Services.AddDbContext<PharmacyContext>((services, options) =>
     options.UseNpgsql(connection)
            .UseSnakeCaseNamingConvention()
-           .AddInterceptors(services.GetRequiredService<SqlCaptureInterceptor>()));
+           .AddInterceptors(services.GetRequiredService<SqlCaptureInterceptor>(),
+                            services.GetRequiredService<TransactionCaptureInterceptor>()));
 
 // Cookie authentication: anonymous users are redirected to the sign-in page
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

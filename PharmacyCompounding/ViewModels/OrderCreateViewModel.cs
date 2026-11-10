@@ -65,6 +65,9 @@ namespace PharmacyCompounding.ViewModels
 
         public int Number { get; set; }
 
+        // Row version of the order when the form was opened (optimistic concurrency)
+        public uint Version { get; set; }
+
         public static OrderEditViewModel From(Order order)
         {
             var item = order.Items.First();
@@ -77,7 +80,7 @@ namespace PharmacyCompounding.ViewModels
 
             return new OrderEditViewModel
             {
-                Id = order.Id, Number = order.Number, ClientId = order.ClientId, PlannedReadyDate = order.PlannedReadyDate,
+                Id = order.Id, Number = order.Number, Version = order.Version, ClientId = order.ClientId, PlannedReadyDate = order.PlannedReadyDate,
                 DoctorId = prescription.DoctorId, PrescriptionNumber = prescription.Number, IssueDate = prescription.IssueDate,
                 ValidityDays = prescription.ValidityDays, Patient = prescription.Patient, Formula = prescription.Formula,
                 MedicineName = item.MedicineName, DosageForm = item.DosageForm, Dosage = item.Dosage,

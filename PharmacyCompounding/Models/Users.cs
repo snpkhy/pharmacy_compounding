@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 
 namespace PharmacyCompounding.Models
@@ -101,5 +102,26 @@ namespace PharmacyCompounding.Models
         public const string Pharmacist = "Pharmacist";
         public const string Technologist = "Technologist";
         public const string Manager = "Manager";
+
+        // Role groups for [Authorize(Roles = ...)]: a comma means "any of"
+        // Pharmacist work: orders, prescription check, payment, quality control, issue; reference data
+        public const string Pharmacy = Pharmacist + "," + Manager;
+        // Manufacturing of medicines
+        public const string Production = Technologist + "," + Manager;
+        // Any employee
+        public const string Staff = Pharmacist + "," + Technologist + "," + Manager;
+    }
+
+    // The same permissions for views: which buttons the current user should see
+    public static class RolePermissions
+    {
+        public static bool CanEdit(this ClaimsPrincipal user) =>
+            user.IsInRole(Roles.Pharmacist) || user.IsInRole(Roles.Manager);
+
+        public static bool CanManufacture(this ClaimsPrincipal user) =>
+            user.IsInRole(Roles.Technologist) || user.IsInRole(Roles.Manager);
+
+        // Deleting records and bulk changes are left to the manager
+        public static bool CanDelete(this ClaimsPrincipal user) => user.IsInRole(Roles.Manager);
     }
 }

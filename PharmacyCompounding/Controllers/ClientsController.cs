@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PharmacyCompounding.Data;
@@ -16,10 +17,12 @@ namespace PharmacyCompounding.Controllers
             View(await _db.Clients.Include(c => c.Orders).OrderBy(c => c.FullName).ToListAsync());
 
         [HttpGet]
+        [Authorize(Roles = Roles.Pharmacy)]
         public IActionResult Create() => View(new Client());
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Pharmacy)]
         public async Task<IActionResult> Create(Client client)
         {
             await ValidateEmail(client);
@@ -32,6 +35,7 @@ namespace PharmacyCompounding.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = Roles.Pharmacy)]
         public async Task<IActionResult> Edit(int id)
         {
             var client = await _db.Clients.FindAsync(id);
@@ -40,6 +44,7 @@ namespace PharmacyCompounding.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Pharmacy)]
         public async Task<IActionResult> Edit(int id, Client client)
         {
             if (id != client.Id) return BadRequest();
@@ -58,6 +63,7 @@ namespace PharmacyCompounding.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Manager)]
         public async Task<IActionResult> Delete(int id)
         {
             var client = await _db.Clients.Include(c => c.Orders).FirstOrDefaultAsync(c => c.Id == id);

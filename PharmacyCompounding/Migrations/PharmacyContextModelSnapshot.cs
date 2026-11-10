@@ -22,6 +22,9 @@ namespace PharmacyCompounding.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.HasSequence<int>("order_numbers")
+                .StartsAt(1001L);
+
             modelBuilder.Entity("PharmacyCompounding.Models.Component", b =>
                 {
                     b.Property<int>("Id")
@@ -57,7 +60,10 @@ namespace PharmacyCompounding.Migrations
                     b.HasIndex("OrderItemId")
                         .HasDatabaseName("ix_components_order_item_id");
 
-                    b.ToTable("components", (string)null);
+                    b.ToTable("components", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_components_amount", "amount > 0");
+                        });
                 });
 
             modelBuilder.Entity("PharmacyCompounding.Models.Doctor", b =>
@@ -89,6 +95,10 @@ namespace PharmacyCompounding.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_doctors");
+
+                    b.HasIndex("LicenseNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_doctors_license_number");
 
                     b.ToTable("doctors", (string)null);
                 });
@@ -134,6 +144,12 @@ namespace PharmacyCompounding.Migrations
                         .HasColumnType("text")
                         .HasColumnName("unit");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.Property<int>("WarehouseId")
                         .HasColumnType("integer")
                         .HasColumnName("warehouse_id");
@@ -148,7 +164,12 @@ namespace PharmacyCompounding.Migrations
                     b.HasIndex("WarehouseId")
                         .HasDatabaseName("ix_ingredients_warehouse_id");
 
-                    b.ToTable("ingredients", (string)null);
+                    b.ToTable("ingredients", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_ingredients_price", "price_per_unit >= 0");
+
+                            t.HasCheckConstraint("ck_ingredients_stock", "stock >= 0 AND min_stock >= 0");
+                        });
                 });
 
             modelBuilder.Entity("PharmacyCompounding.Models.ManufacturingAct", b =>
@@ -215,8 +236,10 @@ namespace PharmacyCompounding.Migrations
                         .HasColumnName("created_at");
 
                     b.Property<int>("Number")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasColumnName("number");
+                        .HasColumnName("number")
+                        .HasDefaultValueSql("nextval('order_numbers')");
 
                     b.Property<DateTime>("PlannedReadyDate")
                         .HasColumnType("timestamp without time zone")
@@ -235,6 +258,12 @@ namespace PharmacyCompounding.Migrations
                         .HasColumnType("numeric")
                         .HasColumnName("total");
 
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id")
                         .HasName("pk_orders");
 
@@ -249,7 +278,10 @@ namespace PharmacyCompounding.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_orders_prescription_id");
 
-                    b.ToTable("orders", (string)null);
+                    b.ToTable("orders", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_orders_total", "total >= 0");
+                        });
                 });
 
             modelBuilder.Entity("PharmacyCompounding.Models.OrderItem", b =>
@@ -293,7 +325,10 @@ namespace PharmacyCompounding.Migrations
                     b.HasIndex("OrderId")
                         .HasDatabaseName("ix_order_items_order_id");
 
-                    b.ToTable("order_items", (string)null);
+                    b.ToTable("order_items", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_order_items_quantity", "quantity > 0 AND work_cost >= 0");
+                        });
                 });
 
             modelBuilder.Entity("PharmacyCompounding.Models.Payment", b =>
@@ -333,7 +368,10 @@ namespace PharmacyCompounding.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_payments_order_id");
 
-                    b.ToTable("payments", (string)null);
+                    b.ToTable("payments", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payments_amount", "amount >= 0");
+                        });
                 });
 
             modelBuilder.Entity("PharmacyCompounding.Models.Prescription", b =>
@@ -378,7 +416,14 @@ namespace PharmacyCompounding.Migrations
                     b.HasIndex("DoctorId")
                         .HasDatabaseName("ix_prescriptions_doctor_id");
 
-                    b.ToTable("prescriptions", (string)null);
+                    b.HasIndex("Number")
+                        .IsUnique()
+                        .HasDatabaseName("ix_prescriptions_number");
+
+                    b.ToTable("prescriptions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_prescriptions_validity", "validity_days BETWEEN 1 AND 365");
+                        });
                 });
 
             modelBuilder.Entity("PharmacyCompounding.Models.QualityCheck", b =>
@@ -498,6 +543,10 @@ namespace PharmacyCompounding.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_warehouses");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_warehouses_name");
 
                     b.ToTable("warehouses", (string)null);
                 });

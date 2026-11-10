@@ -36,6 +36,9 @@ namespace PharmacyCompounding.Models
         public Payment? Payment { get; set; }
         public List<ManufacturingAct> ManufacturingActs { get; set; } = new();
 
+        // Row version (PostgreSQL xmin): detects that someone else changed the order since it was read
+        public uint Version { get; set; }
+
         public void AddItem(OrderItem item) => Items.Add(item);
 
         public decimal CalculateTotal()

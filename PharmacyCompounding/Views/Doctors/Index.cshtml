@@ -2,7 +2,10 @@
 @{ ViewData["Title"] = "Лікарі"; }
 <div class="page-head">
     <div><h1>Лікарі</h1><div class="sub">Лікарі, які виписують рецепти</div></div>
-    <a class="btn btn-brand" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Додати лікаря</a>
+    @if (User.CanEdit())
+    {
+        <a class="btn btn-brand" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Додати лікаря</a>
+    }
 </div>
 <div class="panel">
 <table class="table table-hover align-middle">
@@ -21,10 +24,16 @@
             <td class="num">@d.LicenseNumber</td>
             <td class="text-end fw-semibold">@d.Prescriptions.Count</td>
             <td class="text-end text-nowrap">
-                <a class="btn btn-soft btn-icon" title="Змінити" asp-action="Edit" asp-route-id="@d.Id"><i class="bi bi-pencil"></i></a>
-                <form asp-action="Delete" asp-route-id="@d.Id" method="post" class="d-inline" onsubmit="return confirm('Видалити лікаря?')">
-                    <button class="btn btn-ghost-danger btn-icon" title="Видалити"><i class="bi bi-trash3"></i></button>
-                </form>
+                @if (User.CanEdit())
+                {
+                    <a class="btn btn-soft btn-icon" title="Змінити" asp-action="Edit" asp-route-id="@d.Id"><i class="bi bi-pencil"></i></a>
+                }
+                @if (User.CanDelete())
+                {
+                    <form asp-action="Delete" asp-route-id="@d.Id" method="post" class="d-inline" onsubmit="return confirm('Видалити лікаря?')">
+                        <button class="btn btn-ghost-danger btn-icon" title="Видалити"><i class="bi bi-trash3"></i></button>
+                    </form>
+                }
             </td>
         </tr>
     }
