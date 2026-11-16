@@ -1,9 +1,21 @@
 @model IEnumerable<Prescription>
-@{ ViewData["Title"] = "Рецепти"; }
+@{
+    ViewData["Title"] = "Рецепти";
+    var current = (int)ViewBag.Page;
+    var pages = (int)ViewBag.Pages;
+}
 <div class="page-head">
     <div><h1>Рецепти</h1><div class="sub">Рецепти, подані разом із замовленнями</div></div>
 </div>
 <div class="panel">
+<form asp-action="Index" method="get" class="toolbar">
+    <div class="search">
+        <i class="bi bi-search"></i>
+        <input type="text" name="search" value="@ViewBag.Search" class="form-control" placeholder="Номер рецепта або пацієнт" />
+    </div>
+    <button class="btn btn-soft">Знайти</button>
+    <span class="ms-auto text-muted small">Знайдено: @(((int)ViewBag.Total).ToString("N0"))</span>
+</form>
 <table class="table table-hover align-middle">
     <thead><tr><th>Рецепт</th><th>Лікар</th><th>Пацієнт</th><th>Пропис</th><th>Дійсність</th><th>Замовлення</th><th></th></tr></thead>
     <tbody>
@@ -27,4 +39,12 @@
     }
     </tbody>
 </table>
+@if (pages > 1)
+{
+    <div class="toolbar justify-content-between border-0 border-top">
+        <a class="btn btn-soft btn-sm @(current == 1 ? "disabled" : "")" asp-action="Index" asp-route-search="@ViewBag.Search" asp-route-page="@(current - 1)"><i class="bi bi-chevron-left"></i> Попередня</a>
+        <span class="text-muted small">Сторінка @current з @pages.ToString("N0")</span>
+        <a class="btn btn-soft btn-sm @(current == pages ? "disabled" : "")" asp-action="Index" asp-route-search="@ViewBag.Search" asp-route-page="@(current + 1)">Наступна <i class="bi bi-chevron-right"></i></a>
+    </div>
+}
 </div>

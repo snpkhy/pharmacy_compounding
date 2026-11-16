@@ -13,8 +13,14 @@ namespace PharmacyCompounding.Controllers
         public DoctorsController(PharmacyContext db) => _db = db;
 
         [HttpGet]
-        public async Task<IActionResult> Index() =>
-            View(await _db.Doctors.Include(d => d.Prescriptions).OrderBy(d => d.FullName).ToListAsync());
+        public async Task<IActionResult> Index()
+        {
+            // Prescriptions are counted in the database: there can be tens of thousands of them
+            ViewBag.Counts = await _db.Prescriptions.GroupBy(p => p.DoctorId)
+                                      .Select(g => new { g.Key, Count = g.Count() })
+                                      .ToDictionaryAsync(x => x.Key, x => x.Count);
+            return View(await _db.Doctors.OrderBy(d => d.FullName).ToListAsync());
+        }
 
         [HttpGet]
         [Authorize(Roles = Roles.Pharmacy)]

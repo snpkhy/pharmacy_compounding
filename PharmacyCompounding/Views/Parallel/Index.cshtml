@@ -1,0 +1,89 @@
+@model ParallelViewModel
+@{
+    ViewData["Title"] = "Паралельна обробка";
+    var fastest = Model.Rows.Count > 0 ? Model.Rows.Min(r => r.Milliseconds) : 0;
+}
+<div class="page-head">
+    <div>
+        <h1>Паралельна обробка даних</h1>
+        <div class="sub">Аналіз рецептів: розбір прописів, дійсність рецептів і статистика за лікарями — послідовно та паралельно</div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-4"><div class="panel stat"><div class="stat-icon tone-teal"><i class="bi bi-file-earmark-medical"></i></div><div><div class="stat-value num">@Model.Total.ToString("N0")</div><div class="stat-label">Рецептів у базі</div></div></div></div>
+    <div class="col-md-4"><div class="panel stat"><div class="stat-icon tone-violet"><i class="bi bi-database-add"></i></div><div><div class="stat-value num">@Model.Generated.ToString("N0")</div><div class="stat-label">З них згенеровано програмно</div></div></div></div>
+    <div class="col-md-4"><div class="panel stat"><div class="stat-icon tone-blue"><i class="bi bi-cpu"></i></div><div><div class="stat-value num">@Model.Cores</div><div class="stat-label">Логічних ядер процесора</div></div></div></div>
+</div>
+
+<div class="panel mb-3">
+    <div class="report-form align-items-center">
+        <a class="btn @(Model.Dataset == "small" ? "btn-brand" : "btn-soft")" asp-action="Index" asp-route-dataset="small"><i class="bi bi-play-fill me-1"></i>Запустити на малих даних (до 20 записів)</a>
+        <a class="btn @(Model.Dataset == "all" ? "btn-brand" : "btn-soft")" asp-action="Index" asp-route-dataset="all"><i class="bi bi-play-fill me-1"></i>Запустити на всіх рецептах (@Model.Total.ToString("N0"))</a>
+        @if (User.CanDelete())
+        {
+            <form asp-action="Generate" method="post" class="ms-lg-auto"><button class="btn btn-soft"><i class="bi bi-database-add me-1"></i>Згенерувати 100 000 рецептів</button></form>
+            <form asp-action="Clear" method="post" onsubmit="return confirm('Видалити згенеровані рецепти?')"><button class="btn btn-ghost-danger" disabled="@(Model.Generated == 0)"><i class="bi bi-trash3 me-1"></i>Видалити згенеровані</button></form>
+        }
+    </div>
+</div>
+
+@if (Model.Rows.Count > 0)
+{
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            <div class="panel stat"><div class="stat-icon tone-amber"><i class="bi bi-arrow-down-up"></i></div><div><div class="stat-value num">@Model.SequentialReadMs.ToString("0.0") мс</div><div class="stat-label">Вибірка @Model.Records.ToString("N0") записів з БД одним запитом</div></div></div>
+        </div>
+        @if (Model.ParallelReadMs.HasValue)
+        {
+            <div class="col-md-6">
+                <div class="panel stat"><div class="stat-icon tone-teal"><i class="bi bi-diagram-3"></i></div><div><div class="stat-value num">@Model.ParallelReadMs.Value.ToString("0.0") мс</div><div class="stat-label">Паралельна вибірка: 4 з'єднання, діапазони id @(Model.ParallelReadSame ? "· записів стільки ж" : "· кількість не збігається!")</div></div></div>
+            </div>
+        }
+    </div>
+
+    <div class="panel mb-3">
+        <div class="panel-head"><h2 class="panel-title"><i class="bi bi-speedometer2"></i>Обробка @Model.Records.ToString("N0") записів у пам'яті</h2><span class="small text-muted">медіана повторних запусків після прогрівання</span></div>
+        <table class="table align-middle">
+            <thead><tr><th>Технологія</th><th class="text-end">Потоків</th><th class="text-end">Час, мс</th><th class="text-end">Прискорення</th><th>Результат</th></tr></thead>
+            <tbody>
+            @foreach (var r in Model.Rows)
+            {
+                <tr class="@(r.Milliseconds == fastest ? "row-best" : "")">
+                    <td class="cell-title">@r.Technology</td>
+                    <td class="text-end num">@r.Threads</td>
+                    <td class="text-end num">@r.Milliseconds.ToString(r.Milliseconds < 1 ? "0.000" : "0.00")</td>
+                    <td class="text-end num">
+                        <span class="fw-semibold @(r.Speedup >= 1 ? "text-success" : "text-danger")">×@r.Speedup.ToString("0.00")</span>
+                    </td>
+                    <td>@if (r.SameResult) { <span class="pill st-ok">збігається</span> } else { <span class="pill st-bad">відрізняється</span> }</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="panel">
+        <div class="panel-head"><h2 class="panel-title"><i class="bi bi-table"></i>Результат запиту: рецепти за лікарями</h2></div>
+        <table class="table align-middle">
+            <thead><tr><th>Лікар</th><th class="text-end">Рецептів</th><th class="text-end">Дійсних сьогодні</th><th class="text-end">Компонентів у прописах</th><th class="text-end">Маса / об'єм, г/мл</th><th>Найчастіший інгредієнт</th></tr></thead>
+            <tbody>
+            @foreach (var (doctor, s) in Model.Doctors)
+            {
+                var top = s.Ingredients.OrderByDescending(i => i.Count).FirstOrDefault();
+                <tr>
+                    <td class="cell-title">@doctor</td>
+                    <td class="text-end num">@s.Prescriptions.ToString("N0")</td>
+                    <td class="text-end num">@s.Valid.ToString("N0")</td>
+                    <td class="text-end num">@s.Components.ToString("N0")</td>
+                    <td class="text-end num">@s.Mass.ToString("N1")</td>
+                    <td>
+                        @if (top.Name != null) { <span class="formula small">@top.Name</span> <span class="cell-sub">× @top.Count.ToString("N0")</span> }
+                        else { <span class="text-muted">—</span> }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
