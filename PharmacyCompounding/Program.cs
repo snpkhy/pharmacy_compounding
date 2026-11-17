@@ -40,6 +40,9 @@ builder.Services.AddDbContext<PharmacyContext>((services, options) =>
            .AddInterceptors(services.GetRequiredService<SqlCaptureInterceptor>(),
                             services.GetRequiredService<TransactionCaptureInterceptor>()));
 
+// Time events of the order state diagram: unpaid and not picked-up orders are cancelled automatically
+builder.Services.AddHostedService<PharmacyCompounding.Services.OrderExpirationService>();
+
 // Cookie authentication: anonymous users are redirected to the sign-in page
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(o =>

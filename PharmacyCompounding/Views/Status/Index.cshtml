@@ -1,0 +1,46 @@
+@model Order?
+@{
+    ViewData["Title"] = "Статус замовлення";
+    Layout = "_AuthLayout";
+    var number = (int?)ViewBag.Number;
+    var hint = Model?.Status switch
+    {
+        OrderStatus.Created or OrderStatus.UnderReview => "Провізор перевіряє рецепт і розраховує вартість.",
+        OrderStatus.AwaitingPayment => "Рецепт перевірено. Оплатіть замовлення в особистому кабінеті або в аптеці.",
+        OrderStatus.Paid or OrderStatus.AwaitingIngredients or OrderStatus.InProduction or OrderStatus.QualityControl
+            => "Ліки виготовляються.",
+        OrderStatus.Ready => "Ліки готові — приходьте до аптеки.",
+        OrderStatus.Issued => "Ліки видано.",
+        OrderStatus.Rejected => "Рецепт недійсний, замовлення відхилено.",
+        OrderStatus.Cancelled => "Замовлення скасовано.",
+        _ => null
+    };
+}
+<h1 class="auth-title">Статус замовлення</h1>
+<p class="auth-sub">Введіть номер замовлення — входити не потрібно</p>
+<form asp-action="Index" method="get">
+    <div class="mb-3">
+        <label for="number" class="form-label">Номер замовлення</label>
+        <input id="number" name="number" type="number" min="1" class="form-control" value="@number" placeholder="1001" required autofocus />
+    </div>
+    <button class="btn btn-brand w-100">Перевірити</button>
+</form>
+@if (number != null)
+{
+    <div class="mt-3">
+        @if (Model == null)
+        {
+            <div class="flash flash-error mb-0"><i class="bi bi-search"></i><span>Замовлення №@number не знайдено</span></div>
+        }
+        else
+        {
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-semibold">Замовлення #@Model.Number</span>
+                <partial name="_StatusBadge" model="Model.Status" />
+            </div>
+            <div class="small text-muted mb-1">Планова готовність: @Model.PlannedReadyDate.ToString("dd.MM.yyyy")</div>
+            <div class="small">@hint</div>
+        }
+    </div>
+}
+<div class="auth-foot"><a asp-controller="Account" asp-action="Login">Увійти до кабінету</a></div>

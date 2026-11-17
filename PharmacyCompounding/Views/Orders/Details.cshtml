@@ -32,7 +32,14 @@
     <div>
         <a asp-action="Index" class="small fw-semibold"><i class="bi bi-arrow-left"></i> Замовлення</a>
         <h1 class="d-flex align-items-center gap-3 mt-1">Замовлення #@Model.Number <partial name="_StatusBadge" model="Model.Status" view-data='new ViewDataDictionary(ViewData) { ["Large"] = true }' /></h1>
-        <div class="sub">Створене @Model.CreatedAt.ToString("dd.MM.yyyy о HH:mm") · планова готовність @Model.PlannedReadyDate.ToString("dd.MM.yyyy")</div>
+        <div class="sub">Створене @Model.CreatedAt.ToString("dd.MM.yyyy о HH:mm") · планова готовність @Model.PlannedReadyDate.ToString("dd.MM.yyyy")
+            @if (Model.IssuedAt is DateTime issued) { <span>· видане @issued.ToString("dd.MM.yyyy о HH:mm")</span> }
+            @if (Model.ExpiresAt is DateTime expires) { <span>· автоскасування @expires.ToString("dd.MM.yyyy о HH:mm")</span> }
+        </div>
+        @if (Model.StatusReason != null && Model.Status is OrderStatus.Rejected or OrderStatus.Cancelled)
+        {
+            <div class="sub"><i class="bi bi-info-circle me-1"></i>@Model.StatusReason</div>
+        }
     </div>
     <div class="text-end">
         <div class="stat-label">Сума замовлення</div>
@@ -57,7 +64,7 @@
     </div>
     @if (Model.Status == OrderStatus.AwaitingIngredients)
     {
-        <div class="px-4 pb-3"><div class="flash flash-error mb-0"><i class="bi bi-hourglass-split"></i>Очікуються інгредієнти від постачальника — після поповнення складу повторіть виготовлення.</div></div>
+        <div class="px-4 pb-3"><div class="flash flash-error mb-0"><i class="bi bi-hourglass-split"></i><span>Очікуються інгредієнти від постачальника — після поповнення складу повторіть виготовлення. <a asp-controller="Ingredients" asp-action="SupplyRequest">Заявка на поставку</a></span></div></div>
     }
 </div>
 
@@ -152,11 +159,23 @@
             <div class="panel-head"><h2 class="panel-title"><i class="bi bi-lightning-charge"></i>Наступна дія</h2></div>
             <div class="panel-body action-stack">
                 @* Each action is a separate HTML form that sends a POST request to the matching controller action *@
-                @if (Model.Status == OrderStatus.UnderReview && canEdit)
+                @if (Model.Status is OrderStatus.Created or OrderStatus.UnderReview && canEdit)
                 {
+                    @if (!Model.HasComposition)
+                    {
+                        <div class="flash flash-info mb-0"><i class="bi bi-person-check"></i><span>Клієнт оформив замовлення онлайн. Натисніть «Редагувати», додайте компоненти й вартість роботи, потім перевірте рецепт.</span></div>
+                    }
                     <p class="text-muted small mb-0">Провізор перевіряє дійсність рецепта, дозування та сумісність компонентів.</p>
                     <form asp-action="Verify" asp-route-id="@Model.Id" method="post" class="d-grid">
                         <button class="btn btn-brand"><i class="bi bi-search me-1"></i>Перевірити рецепт і розрахувати вартість</button>
+                    </form>
+                    <form asp-action="Reject" asp-route-id="@Model.Id" method="post" class="action-stack">
+                        <div>
+                            <label class="form-label" for="reason">Причина відхилення</label>
+                            <input id="reason" name="reason" class="form-control" maxlength="500" required
+                                   placeholder="Напр.: перевищено разову дозу, несумісні компоненти" />
+                        </div>
+                        <button class="btn btn-ghost-danger"><i class="bi bi-x-octagon me-1"></i>Відхилити замовлення</button>
                     </form>
                 }
                 @if (Model.Status == OrderStatus.AwaitingPayment && canEdit)

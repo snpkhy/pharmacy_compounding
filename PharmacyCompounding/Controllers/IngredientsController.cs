@@ -33,6 +33,27 @@ namespace PharmacyCompounding.Controllers
             return View(await query.OrderBy(i => i.Code).ToListAsync());
         }
 
+        // GET: /Ingredients/SupplyRequest — "Create a supply request" (extends "Account for ingredient stock")
+        [HttpGet]
+        public async Task<IActionResult> SupplyRequest()
+        {
+            // Ingredients reserved by paid orders that are not manufactured yet (including those awaiting ingredients)
+            var reserved = (await _db.Components
+                    .Where(c => c.OrderItem!.Order!.Status == OrderStatus.Paid ||
+                                c.OrderItem.Order.Status == OrderStatus.AwaitingIngredients)
+                    .Select(c => new { c.IngredientId, Amount = c.Amount * c.OrderItem!.Quantity })
+                    .ToListAsync())
+                .GroupBy(c => c.IngredientId)
+                .ToDictionary(g => g.Key, g => g.Sum(c => c.Amount));
+
+            var warehouses = await _db.Warehouses.Include(w => w.Ingredients).OrderBy(w => w.Name).ToListAsync();
+            ViewBag.Waiting = await _db.Orders.CountAsync(o => o.Status == OrderStatus.AwaitingIngredients);
+            return View(warehouses
+                .Select(w => (Warehouse: w, Lines: w.CreateSupplyRequest(reserved)))
+                .Where(x => x.Lines.Count > 0)
+                .ToList());
+        }
+
         [HttpGet]
         [Authorize(Roles = Roles.Pharmacy)]
         public async Task<IActionResult> Create()

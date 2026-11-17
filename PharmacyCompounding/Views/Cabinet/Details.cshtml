@@ -8,7 +8,7 @@
     </div>
     <div class="text-end">
         <div class="stat-label">Сума замовлення</div>
-        <div class="stat-value num">@Model.Total.ToString("N2") ₴</div>
+        <div class="stat-value num">@(Model.HasComposition ? Model.Total.ToString("N2") + " ₴" : Model.Status is OrderStatus.Rejected or OrderStatus.Cancelled ? "—" : "розраховується")</div>
     </div>
 </div>
 
@@ -28,13 +28,72 @@
                     {
                         <tr><td class="cell-title">@c.Ingredient?.Name</td><td class="text-end num">@c.Amount.ToString("0.##") @c.Unit</td></tr>
                     }
-                    <tr class="total-row"><td>Вартість позиції</td><td class="text-end num">@item.CalculateCost().ToString("N2") ₴</td></tr>
+                    @if (item.Components.Count == 0)
+                    {
+                        <tr><td colspan="2" class="text-muted">Склад і вартість визначить провізор під час перевірки рецепта</td></tr>
+                    }
+                    else
+                    {
+                        <tr class="total-row"><td>Вартість позиції</td><td class="text-end num">@item.CalculateCost().ToString("N2") ₴</td></tr>
+                    }
                     </tbody>
                 </table>
             </div>
         }
     </div>
     <div class="col-xl-4">
+        <div class="panel mb-3">
+            <div class="panel-head"><h2 class="panel-title"><i class="bi bi-lightning-charge"></i>Що далі</h2></div>
+            <div class="panel-body action-stack">
+                <p class="text-muted small mb-0">
+                    @(Model.Status switch
+                    {
+                        OrderStatus.Created => "Замовлення зареєстровано й чекає на провізора. Поки його не взяли в роботу, ви можете його скасувати.",
+                        OrderStatus.UnderReview => "Провізор перевіряє рецепт і розраховує вартість. Після цього замовлення можна буде оплатити.",
+                        OrderStatus.AwaitingPayment => "Рецепт перевірено. Оплатіть замовлення, щоб ліки передали на виготовлення.",
+                        OrderStatus.Paid or OrderStatus.AwaitingIngredients or OrderStatus.InProduction or OrderStatus.QualityControl
+                            => "Замовлення оплачено, ліки виготовляються. Ми повідомимо, коли вони будуть готові.",
+                        OrderStatus.Ready => "Ліки готові! Приходьте до аптеки, щоб їх отримати.",
+                        OrderStatus.Issued => "Ліки видано. Дякуємо!",
+                        OrderStatus.Rejected => "Рецепт недійсний, тому замовлення відхилено. Зверніться до лікаря за новим рецептом.",
+                        _ => "Замовлення скасовано."
+                    })
+                </p>
+                @if (Model.StatusReason != null && Model.Status is OrderStatus.Rejected or OrderStatus.Cancelled)
+                {
+                    <div class="small"><span class="text-muted">Причина:</span> @Model.StatusReason</div>
+                }
+                @if (Model.ExpiresAt is DateTime expires)
+                {
+                    <div class="small fw-semibold">
+                        <i class="bi bi-clock me-1"></i>@(Model.Status == OrderStatus.AwaitingPayment ? "Оплатіть до" : "Заберіть до")
+                        @expires.ToString("dd.MM.yyyy HH:mm") — інакше замовлення буде скасовано автоматично
+                    </div>
+                }
+                @if (Model.IssuedAt is DateTime issued)
+                {
+                    <div class="small"><span class="text-muted">Видано:</span> @issued.ToString("dd.MM.yyyy о HH:mm")</div>
+                }
+                @if (Model.Status == OrderStatus.AwaitingPayment)
+                {
+                    <form asp-action="Pay" asp-route-id="@Model.Id" method="post" class="action-stack">
+                        <div>
+                            <label class="form-label" for="method">Спосіб оплати</label>
+                            <select id="method" name="method" class="form-select">
+                                @foreach (var m in PharmacyCompounding.Controllers.CabinetController.OnlinePaymentMethods) { <option>@m</option> }
+                            </select>
+                        </div>
+                        <button class="btn btn-brand"><i class="bi bi-credit-card me-1"></i>Оплатити @Model.Total.ToString("N2") ₴</button>
+                    </form>
+                }
+                @if (Model.CanClientCancel)
+                {
+                    <form asp-action="Cancel" asp-route-id="@Model.Id" method="post" class="d-grid" onsubmit="return confirm('Скасувати замовлення?')">
+                        <button class="btn btn-ghost-danger"><i class="bi bi-x-circle me-1"></i>Скасувати замовлення</button>
+                    </form>
+                }
+            </div>
+        </div>
         <div class="panel mb-3">
             <div class="panel-head"><h2 class="panel-title"><i class="bi bi-file-earmark-medical"></i>Рецепт @Model.Prescription?.Number</h2></div>
             <div class="panel-body small">

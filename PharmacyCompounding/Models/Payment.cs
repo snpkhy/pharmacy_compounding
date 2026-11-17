@@ -23,10 +23,13 @@ namespace PharmacyCompounding.Models
         public int OrderId { get; set; }
         public Order? Order { get; set; }
 
+        // Stands in for the external payment system from the use case diagram
         public bool Process()
         {
             Successful = Amount > 0;
             return Successful;
         }
+
+        public void Refund() => Successful = false;
     }
 }

@@ -1,0 +1,51 @@
+@model List<(Warehouse Warehouse, List<SupplyLine> Lines)>
+@{
+    ViewData["Title"] = "Заявка на поставку";
+    var waiting = (int)ViewBag.Waiting;
+}
+<div class="page-head">
+    <div>
+        <a asp-action="Index" class="small fw-semibold no-print"><i class="bi bi-arrow-left"></i> Склад</a>
+        <h1 class="mt-1">Заявка на поставку від @DateTime.Today.ToString("dd.MM.yyyy")</h1>
+        <div class="sub">
+            Кількість до замовлення = мінімальний залишок + зарезервовано під оплачені замовлення − поточний залишок.
+            @if (waiting > 0) { <span>Замовлень, що очікують інгредієнтів: <b>@waiting</b>.</span> }
+        </div>
+    </div>
+    @if (Model.Count > 0)
+    {
+        <button type="button" class="btn btn-soft no-print" onclick="window.print()"><i class="bi bi-printer me-1"></i>Друкувати</button>
+    }
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="panel"><div class="panel-body empty"><i class="bi bi-check2-circle fs-3 d-block mb-2"></i>Усіх інгредієнтів достатньо — замовляти нічого не потрібно.</div></div>
+}
+@foreach (var (warehouse, lines) in Model)
+{
+    <div class="panel mb-3">
+        <div class="panel-head">
+            <h2 class="panel-title"><i class="bi bi-buildings"></i>@warehouse.Name</h2>
+            <span class="small text-muted">@warehouse.Address</span>
+        </div>
+        <table class="table align-middle">
+            <thead><tr><th>Код</th><th>Інгредієнт</th><th class="text-end">Залишок</th><th class="text-end">Мінімум</th><th class="text-end">Зарезервовано</th><th class="text-end">Замовити</th><th class="text-end">Орієнтовна сума</th></tr></thead>
+            <tbody>
+            @foreach (var l in lines)
+            {
+                <tr class="@(l.Ingredient.Stock < l.Reserved ? "row-warn" : "")">
+                    <td class="cell-sub">@l.Ingredient.Code</td>
+                    <td class="cell-title">@l.Ingredient.Name</td>
+                    <td class="text-end num">@l.Ingredient.Stock.ToString("0.##") @l.Ingredient.Unit</td>
+                    <td class="text-end num">@l.Ingredient.MinStock.ToString("0.##")</td>
+                    <td class="text-end num">@(l.Reserved > 0 ? l.Reserved.ToString("0.##") : "—")</td>
+                    <td class="text-end num fw-semibold">@l.ToOrder.ToString("0.##") @l.Ingredient.Unit</td>
+                    <td class="text-end num">@l.Cost.ToString("N2") ₴</td>
+                </tr>
+            }
+            <tr class="total-row"><td colspan="6">Разом по складу</td><td class="text-end num">@lines.Sum(l => l.Cost).ToString("N2") ₴</td></tr>
+            </tbody>
+        </table>
+    </div>
+}

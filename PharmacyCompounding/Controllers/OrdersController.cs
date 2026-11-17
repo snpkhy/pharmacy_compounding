@@ -152,6 +152,9 @@ namespace PharmacyCompounding.Controllers
             }
 
             vm.ApplyTo(order, await _db.Ingredients.ToDictionaryAsync(i => i.Id));
+            // A client's online order: once the pharmacist has added the composition, the prescription is under review
+            var takenForReview = order.Status == OrderStatus.Created;
+            if (takenForReview) order.ChangeStatus(OrderStatus.UnderReview);
             // The version the user saw when opening the form: if the order has changed since, saving fails
             _db.Entry(order).Property(o => o.Version).OriginalValue = vm.Version;
             // The orders row is always updated, so the version check runs even if only the prescription or items changed
@@ -165,7 +168,8 @@ namespace PharmacyCompounding.Controllers
                 TempData["Error"] = ConcurrencyError;
                 return RedirectToAction(nameof(Details), new { id });
             }
-            TempData["Message"] = $"Зміни в замовленні №{order.Number} збережено. Нова сума: {order.Total:0.00} грн";
+            TempData["Message"] = $"Зміни в замовленні №{order.Number} збережено. Нова сума: {order.Total:0.00} грн" +
+                                  (takenForReview ? ". Замовлення передано на перевірку рецепта" : "");
             return RedirectToAction(nameof(Details), new { id });
         }
 
@@ -203,27 +207,49 @@ namespace PharmacyCompounding.Controllers
         [Authorize(Roles = Roles.Pharmacy)]
         public Task<IActionResult> Verify(int id) => Transition(id, order =>
         {
-            if (order.Prescription!.IsValid(DateTime.Today))
+            // A client's online order is still "Created": the pharmacist takes it for review first
+            if (order.Status == OrderStatus.Created)
+                order.ChangeStatus(OrderStatus.UnderReview);
+            if (!order.Prescription!.IsValid(DateTime.Today))
             {
-                order.CalculateTotal();
-                order.ChangeStatus(OrderStatus.AwaitingPayment);
-                return $"Рецепт дійсний. Виставлено рахунок на {order.Total:0.00} грн";
+                order.Reject("Термін дії рецепта минув");
+                return "Рецепт недійсний (минув термін дії). Замовлення відхилено, клієнта сповіщено";
             }
-            order.ChangeStatus(OrderStatus.Rejected);
-            return "Рецепт недійсний (минув термін дії). Замовлення відхилено";
+            // An order the client placed online has no composition yet: the pharmacist adds it via "Edit"
+            if (!order.HasComposition)
+                throw new InvalidOperationException(
+                    "Рецепт дійсний, але склад ліків ще не визначено. Натисніть «Редагувати», додайте компоненти й вартість роботи, потім перевірте рецепт");
+            order.CalculateTotal();
+            order.ChangeStatus(OrderStatus.AwaitingPayment);
+            return $"Рецепт дійсний. Виставлено рахунок на {order.Total:0.00} грн";
         });
 
-        // POST: /Orders/Pay/5
+        // POST: /Orders/Reject/5 — the pharmacist rejects the prescription: wrong dosage, incompatible components, etc.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = Roles.Pharmacy)]
+        public async Task<IActionResult> Reject(int id, string? reason)
+        {
+            reason = reason?.Trim();
+            if (string.IsNullOrEmpty(reason))
+                return await Fail(id, "Вкажіть причину відхилення — її побачить клієнт");
+            if (reason.Length > 500) reason = reason[..500];
+            return await Transition(id, order =>
+            {
+                if (order.Status is not (OrderStatus.Created or OrderStatus.UnderReview))
+                    throw new InvalidOperationException("Відхилити можна лише замовлення, рецепт якого ще не перевірено");
+                order.Reject(reason);
+                return "Замовлення відхилено, клієнта сповіщено";
+            });
+        }
+
+        // POST: /Orders/Pay/5 — payment at the pharmacy counter
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = Roles.Pharmacy)]
         public Task<IActionResult> Pay(int id, string method) => Transition(id, order =>
         {
-            var payment = new Payment { Amount = order.Total, Method = method, OrderId = order.Id };
-            if (!payment.Process())
-                throw new InvalidOperationException("Оплата не пройшла");
-            order.Payment = payment;
-            order.ChangeStatus(OrderStatus.Paid);
+            var payment = order.Pay(method);
             return $"Оплату {payment.Amount:0.00} грн отримано ({method})";
         });
 
@@ -320,15 +346,9 @@ namespace PharmacyCompounding.Controllers
         [ValidateAntiForgeryToken]
         [Authorize(Roles = Roles.Pharmacy)]
         public Task<IActionResult> Cancel(int id) => Transition(id, order =>
-        {
-            order.ChangeStatus(OrderStatus.Cancelled);
-            if (order.Payment is { Successful: true })
-            {
-                order.Payment.Successful = false;
-                return $"Замовлення скасовано, кошти ({order.Payment.Amount:0.00} грн) повернуто";
-            }
-            return "Замовлення скасовано";
-        });
+            order.Cancel("Скасовано в аптеці")
+                ? $"Замовлення скасовано, кошти ({order.Payment!.Amount:0.00} грн) повернуто"
+                : "Замовлення скасовано");
 
         // Shared logic for POST actions: load, change state, save, return to the details page
         private async Task<IActionResult> Transition(int id, Func<Order, string> action)
