@@ -52,6 +52,17 @@ namespace PharmacyCompounding.Models
         public List<Order> Orders { get; set; } = new();
 
         public override string Role => Roles.Client;
+
+        // Class diagram: Client.createOrder(prescription). As in the activity diagram, the system registers the order
+        // with the status "Created"; it moves to "Under review" when the pharmacist adds the composition and the cost
+        public Order CreateOrder(Prescription prescription, OrderItem item)
+        {
+            var order = new Order { ClientId = Id, Prescription = prescription };
+            order.AddItem(item);
+            order.CalculateTotal();
+            Orders.Add(order);
+            return order;
+        }
     }
 
     // Abstract Employee class

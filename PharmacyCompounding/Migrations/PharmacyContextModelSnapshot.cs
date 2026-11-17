@@ -254,6 +254,15 @@ namespace PharmacyCompounding.Migrations
                         .HasColumnType("text")
                         .HasColumnName("status");
 
+                    b.Property<DateTime>("StatusChangedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("status_changed_at");
+
+                    b.Property<string>("StatusReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("status_reason");
+
                     b.Property<decimal>("Total")
                         .HasColumnType("numeric")
                         .HasColumnName("total");

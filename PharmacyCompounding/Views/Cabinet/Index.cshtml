@@ -9,7 +9,22 @@
         <h1>Мої замовлення</h1>
         <div class="sub">Стан виготовлення ліків за вашими рецептами</div>
     </div>
+    <a asp-action="Create" class="btn btn-brand"><i class="bi bi-plus-lg me-1"></i>Нове замовлення</a>
 </div>
+
+@* Notifications from the state diagram: Ready (entry / notify the client), Rejected (entry / notify the client),
+   and the bill issued after the prescription check *@
+@foreach (var o in Model.Where(o => o.Status is OrderStatus.Ready or OrderStatus.AwaitingPayment ||
+                                    o.Status == OrderStatus.Rejected && o.StatusChangedAt > DateTime.Now.AddDays(-14)))
+{
+    var (css, icon, text) = o.Status switch
+    {
+        OrderStatus.Ready => ("flash-success", "bi-bag-check-fill", $"Ліки за замовленням #{o.Number} готові — заберіть їх в аптеці до {o.ExpiresAt:dd.MM.yyyy}"),
+        OrderStatus.AwaitingPayment => ("flash-info", "bi-credit-card-fill", $"Рецепт до замовлення #{o.Number} перевірено. Сплатіть {o.Total:N2} ₴ до {o.ExpiresAt:dd.MM.yyyy}"),
+        _ => ("flash-error", "bi-x-octagon-fill", $"Замовлення #{o.Number} відхилено: {o.StatusReason ?? "рецепт недійсний"}")
+    };
+    <a asp-action="Details" asp-route-id="@o.Id" class="flash @css text-decoration-none"><i class="bi @icon"></i><span>@text</span></a>
+}
 
 <div class="row g-3">
     <div class="col-xl-8">
@@ -25,14 +40,14 @@
                         <td class="text-muted">@o.Prescription?.Number</td>
                         <td class="num">@o.PlannedReadyDate.ToString("dd.MM.yyyy")</td>
                         <td><partial name="_StatusBadge" model="o.Status" /></td>
-                        <td class="text-end num">@o.Total.ToString("N2") ₴</td>
+                        <td class="text-end num">@(o.HasComposition ? o.Total.ToString("N2") + " ₴" : o.Status is OrderStatus.Rejected or OrderStatus.Cancelled ? "—" : "розраховується")</td>
                     </tr>
                 }
                 @if (!Model.Any())
                 {
                     <tr><td colspan="6" class="empty">
                         <i class="bi bi-receipt fs-3 d-block mb-2"></i>
-                        Замовлень поки немає. Принесіть рецепт лікаря до аптеки — провізор оформить замовлення, і воно з'явиться тут.
+                        Замовлень поки немає. <a asp-action="Create">Оформіть замовлення</a> за рецептом лікаря або принесіть рецепт до аптеки.
                     </td></tr>
                 }
                 </tbody>

@@ -188,6 +188,12 @@ namespace PharmacyCompounding.Data
             foreach (var u in clients.Cast<User>().Append(pharmacist).Append(technologist).Append(pharmacist2).Append(technologist2))
                 u.SetPassword(u.Password!);
 
+            // The test orders got their statuses directly, so the time of the last status change is set here:
+            // issued orders were picked up on the planned date, the others changed status today
+            foreach (var o in db.ChangeTracker.Entries<Order>().Select(e => e.Entity))
+                o.StatusChangedAt = o.Status == OrderStatus.Issued ? o.PlannedReadyDate.AddHours(12) : today.AddHours(8);
+            orders.First(o => o.Status == OrderStatus.Rejected).StatusReason = "Термін дії рецепта минув";
+
             db.SaveChanges();
             // The test orders have explicit numbers, so new orders continue after them
             db.Database.ExecuteSqlRaw("SELECT setval('order_numbers', (SELECT MAX(number) FROM orders))");

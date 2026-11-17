@@ -112,7 +112,7 @@ stateDiagram-v2
     UnderReview --> AwaitingPayment
     UnderReview --> Rejected
     AwaitingPayment --> Paid
-    AwaitingPayment --> Cancelled
+    AwaitingPayment --> Cancelled : client / after 3 days
     Paid --> InProduction
     Paid --> AwaitingIngredients
     Paid --> Cancelled
@@ -122,7 +122,7 @@ stateDiagram-v2
     QualityControl --> Ready
     QualityControl --> InProduction : batch rejected
     Ready --> Issued
-    Ready --> Cancelled
+    Ready --> Cancelled : after 10 days, disposed
     Rejected --> [*]
     Issued --> [*]
     Cancelled --> [*]
@@ -135,12 +135,20 @@ share the `_OrderForm` partial, and `OrderEditViewModel` extends `OrderCreateVie
 
 Starting manufacturing checks stock, writes off the ingredients and creates a manufacturing act. If an ingredient is
 short, the order moves to `AwaitingIngredients` instead.
+The supply request page (`/Ingredients/SupplyRequest`, `Warehouse.CreateSupplyRequest`) lists, per warehouse, how much of
+each ingredient to order: the minimum stock plus the amount reserved by paid orders not yet manufactured, minus the stock.
+
+`ChangeStatus` also records `StatusChangedAt`. It is the issue date of an issued order and the start of the two time
+events of the state diagram, which `Services/OrderExpirationService` (a hosted service, at startup and then hourly)
+applies: an order awaiting payment for 3 days and a ready order not picked up for 10 days are cancelled, and a payment is
+refunded (`Order.Cancel`). `StatusReason` keeps why an order was rejected or cancelled; the pharmacist gives the reason
+when rejecting a prescription manually (wrong dosage, incompatible components), and the client sees it in the cabinet.
 
 ## Security
 
 - **Authentication:** cookie-based, 7-day sliding expiration. Passwords are stored as PBKDF2 hashes.
 - **Authorization:** a fallback policy requires a staff role (Pharmacist, Technologist or Manager) on every endpoint.
-  Exceptions are explicit: `[AllowAnonymous]` for sign-in and sign-up, `[Authorize(Roles = Roles.Client)]` for the
+  Exceptions are explicit: `[AllowAnonymous]` for sign-in, sign-up and the order status page, `[Authorize(Roles = Roles.Client)]` for the
   client cabinet, `[Authorize(Roles = Roles.Manager)]` for staff management.
 - **Roles inside the staff** (`Roles.Pharmacy`, `Roles.Production` for attributes; `User.CanEdit()`,
   `CanManufacture()`, `CanDelete()` in views):
@@ -154,8 +162,14 @@ short, the order moves to `AwaitingIngredients` instead.
   | Delete records, warehouses, staff, bulk maintenance reports | | | ✓ |
 
   Buttons a role can't use are hidden, and the controller actions check the same roles.
-- **Clients** see their own orders, edit their profile (`/Cabinet/Profile`, the password changes only with the current
-  one) and the contacts page.
+- **Clients** follow the client use cases from lab 1 in their cabinet: place an order with a doctor's prescription
+  (`/Cabinet/Create`; it stays "Created" until the pharmacist adds the composition and the cost via "Edit", which
+  moves it to "Under review"), pay for it once the prescription is checked, cancel it while it is "Created" or
+  "Awaiting payment", and see notices when it is billed, ready or rejected.
+  They only ever load their own orders. They also edit their profile (`/Cabinet/Profile`, the password changes only
+  with the current one) and see the contacts page.
+- **Order status without signing in:** `/Status?number=1002` (`[AllowAnonymous]`, linked from the sign-in page) shows
+  only the status and the planned ready date.
 - **Sign-up:** only clients can register themselves; employees are created by the manager.
 - **Secrets:** database credentials live in `.env`, which is git-ignored. `appsettings.json` only has the host and port.
 

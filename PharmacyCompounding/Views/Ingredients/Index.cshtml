@@ -8,10 +8,13 @@
         <h1>Склад</h1>
         <div class="sub">Довідник інгредієнтів, залишки та поповнення</div>
     </div>
-    @if (User.CanEdit())
-    {
-        <a class="btn btn-brand" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Додати інгредієнт</a>
-    }
+    <div class="d-flex gap-2">
+        <a class="btn btn-soft" asp-action="SupplyRequest"><i class="bi bi-truck me-1"></i>Заявка на поставку</a>
+        @if (User.CanEdit())
+        {
+            <a class="btn btn-brand" asp-action="Create"><i class="bi bi-plus-lg me-1"></i>Додати інгредієнт</a>
+        }
+    </div>
 </div>
 
 <div class="panel">

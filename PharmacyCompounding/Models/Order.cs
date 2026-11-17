@@ -20,6 +20,16 @@ namespace PharmacyCompounding.Models
         [Display(Name = "Статус")]
         public OrderStatus Status { get; set; } = OrderStatus.Created;
 
+        // When the order entered its current status: the issue date for "Issued" (state diagram: entry / record
+        // the issue date) and the start of the time events after(3 days) and after(10 days)
+        [Display(Name = "Дата зміни статусу")]
+        public DateTime StatusChangedAt { get; set; } = DateTime.Now;
+
+        // Why the order was rejected or cancelled: shown to the client (state diagram, "Rejected": entry / notify the client)
+        [StringLength(500)]
+        [Display(Name = "Причина")]
+        public string? StatusReason { get; set; }
+
         [DataType(DataType.Currency)]
         [Display(Name = "Сума, грн")]
         public decimal Total { get; set; }
@@ -73,12 +83,65 @@ namespace PharmacyCompounding.Models
             (Status is OrderStatus.Created or OrderStatus.UnderReview or OrderStatus.Rejected or OrderStatus.Cancelled) &&
             !ManufacturingActs.Any() && Payment is not { Successful: true };
 
+        // A client's own order has no composition until the pharmacist calculates the cost
+        public bool HasComposition => Items.Count > 0 && Items.All(i => i.Components.Count > 0);
+
+        // State diagram: the client cancels an order only before paying for it
+        public bool CanClientCancel => Status is OrderStatus.Created or OrderStatus.AwaitingPayment;
+
         public void ChangeStatus(OrderStatus next)
         {
             if (!CanChangeTo(next))
                 throw new InvalidOperationException(
                     $"Неможливий перехід зі стану «{Status.GetDisplayName()}» у стан «{next.GetDisplayName()}»");
             Status = next;
+            StatusChangedAt = DateTime.Now;
+        }
+
+        // "Check the prescription" ends with "Reject the order" (extend) when the prescription is not valid:
+        // expired, or the pharmacist finds a wrong dosage or incompatible components
+        public void Reject(string reason)
+        {
+            if (Status == OrderStatus.Created) ChangeStatus(OrderStatus.UnderReview);
+            ChangeStatus(OrderStatus.Rejected);
+            StatusReason = reason;
+        }
+
+        // Time events of the state diagram
+        public static readonly TimeSpan PaymentTimeout = TimeSpan.FromDays(3);   // Awaiting payment → after(3 days) → Cancelled
+        public static readonly TimeSpan PickupTimeout = TimeSpan.FromDays(10);   // Ready → after(10 days) / dispose → Cancelled
+
+        public DateTime? ExpiresAt => Status switch
+        {
+            OrderStatus.AwaitingPayment => StatusChangedAt + PaymentTimeout,
+            OrderStatus.Ready => StatusChangedAt + PickupTimeout,
+            _ => null
+        };
+
+        public bool IsExpired(DateTime now) => ExpiresAt <= now;
+
+        public DateTime? IssuedAt => Status == OrderStatus.Issued ? StatusChangedAt : null;
+
+        public Payment Pay(string method)
+        {
+            if (Status != OrderStatus.AwaitingPayment)
+                throw new InvalidOperationException($"Замовлення у стані «{Status.GetDisplayName()}» не очікує оплати");
+            var payment = new Payment { Amount = Total, Method = method, OrderId = Id };
+            if (!payment.Process())
+                throw new InvalidOperationException("Оплата не пройшла");
+            Payment = payment;
+            ChangeStatus(OrderStatus.Paid);
+            return payment;
+        }
+
+        // Returns true when a payment was refunded (the "Cancelled" state: entry / refund if paid)
+        public bool Cancel(string? reason = null)
+        {
+            ChangeStatus(OrderStatus.Cancelled);
+            StatusReason = reason;
+            if (Payment is not { Successful: true }) return false;
+            Payment.Refund();
+            return true;
         }
     }
 }

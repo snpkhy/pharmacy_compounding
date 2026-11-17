@@ -36,7 +36,8 @@
             @if (isClient)
             {
                 <div class="nav-section">Кабінет</div>
-                <a class="@(action == "Profile" ? "" : Active("Cabinet"))" asp-controller="Cabinet" asp-action="Index"><i class="bi bi-receipt"></i>Мої замовлення</a>
+                <a class="@(action is "Profile" or "Create" ? "" : Active("Cabinet"))" asp-controller="Cabinet" asp-action="Index"><i class="bi bi-receipt"></i>Мої замовлення</a>
+                <a class="@Active("Cabinet", "Create")" asp-controller="Cabinet" asp-action="Create"><i class="bi bi-plus-circle"></i>Нове замовлення</a>
                 <a class="@Active("Cabinet", "Profile")" asp-controller="Cabinet" asp-action="Profile"><i class="bi bi-person"></i>Профіль</a>
                 <a class="@Active("Contacts")" asp-controller="Contacts" asp-action="Index"><i class="bi bi-telephone"></i>Контакти</a>
             }

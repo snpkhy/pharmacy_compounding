@@ -146,6 +146,7 @@ a:hover { color: var(--brand-dark); }
 .flash { display: flex; gap: 10px; align-items: center; padding: 12px 16px; border-radius: 12px; margin-bottom: 18px; font-weight: 500; }
 .flash-success { background: #e7f6ec; color: #105c3a; border: 1px solid #c3e7d0; }
 .flash-error { background: #fdecec; color: #8f1d14; border: 1px solid #f5c2c0; }
+.flash-info { background: #eaf2fd; color: #17406f; border: 1px solid #c6daf5; }
 
 .empty { text-align: center; color: var(--muted); padding: 40px 0 !important; }
 .bar { height: 8px; border-radius: 99px; background: #eef1f5; overflow: hidden; }
@@ -190,3 +191,9 @@ a:hover { color: var(--brand-dark); }
 
 /* ---------- parallel processing ---------- */
 .row-best td { background: #f0faf6 !important; }
+
+/* Printing a document (supply request): only the page content */
+@media print {
+    .sidebar, .no-print, .flash { display: none !important; }
+    .main, .content { margin: 0 !important; padding: 0 !important; }
+}
